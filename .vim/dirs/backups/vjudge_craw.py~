@@ -1,0 +1,89 @@
+#! /usr/bin/env python3
+import  urllib.request , urllib.parse
+import json
+#import cookielib
+import matplotlib.pylab as plt
+
+username = 'willvegapunk'
+password = 'topscientist'
+language = 'C++11'
+login_url = 'https://vjudge.net/user/login'
+submit_url = 'https://vjudge.net/problem/submit'
+share = 0
+oj = 'Aizu'
+probNum = '0005'
+cookie = str()
+runid = str()
+code ='''
+#include <iostream>
+using namespace std;
+
+typedef long long ll;
+
+ll gcd(ll a, ll b){
+return a != 0 ? gcd(b % a, a) : b;
+}
+
+int main() {
+ll a, b;
+while(cin >> a >> b)
+cout << gcd(a, b) << " " << a / gcd(a, b) * b << endl;}
+'''
+
+def main():
+    # Login
+    body = urllib.parse.urlencode({'username': username, 'password':password})
+    headers = {'accept':'*/*','User-Agent' :'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'}
+    body = body.encode('ascii')
+    req = urllib.request.Request(login_url,data=body, headers= headers,method='POST')                   
+    with urllib.request.urlopen(req) as response:
+        print(response.read().decode('utf-8'))
+        print("Response Meta Data")
+        a = dict(response.info())
+        # Parsing the Cookie information
+        index = a['Set-Cookie'].find(';')
+        print(a['Set-Cookie'][:index])
+        cookie = a['Set-Cookie'][:index]
+    headers['Cookie']= cookie
+
+    #Captha
+    with urllib.request.urlopen('https://vjudge.net/util/captcha?1000224088536') as captcha_resp:
+        with open(r'tmp.png', 'wb') as tmp:
+            tmp.write(captcha_resp.read())
+        ''' with open('tmp.png', 'r') as tmp:
+            img =plt.imread(tmp)
+            plt.imshow(img)
+        '''
+    captcha = input('Enter The Captcha: ')
+    
+
+    # Submit Code
+    body = urllib.parse.urlencode({'language':language, 'share':share, 'source':code, 'oj':oj, 'captcha':captcha,'probNum':probNum })
+    body = body.encode('ascii')
+    print(type(body)) # encode into ascii 
+    req = urllib.request.Request(submit_url,data=body, headers=headers,method='POST')                   
+    with urllib.request.urlopen(req) as response:
+        json_response = json.loads(response.read().decode('utf-8'))
+        runid = json_response['runId']
+        if runid:
+            check_sol_url = 'https://vjudge.net/solution/data/' + str(runid)
+            body = urllib.parse.urlencode({'showCode': 'false'}).encode('ascii')
+            check_req = urllib.request.Request(check_sol_url,data=body ,headers = headers, method='POST')
+            
+            while(True):
+                with urllib.request.urlopen(check_req) as check_resp:
+                    check_json = json.loads(check_resp.read().decode('utf-8'))
+                    if check_json['statusType'] != 2:
+                        print(check_json[])
+                        break
+                    else:
+                        print(check_json['status'])
+        else:
+            print(json_response)
+            
+
+
+
+
+if __name__ == '__main__':
+    main()

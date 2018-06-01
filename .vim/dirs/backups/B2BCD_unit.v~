@@ -1,0 +1,55 @@
+module B2BCD_unit (
+    binary_code, BCD_code
+);
+parameter BINARY_WID = 12, BCD_DIG = 16;
+
+input  [BINARY_WID-1 : 0] binary_code;
+output reg [BCD_DIG-1 : 0]      BCD_code;
+
+
+//wire [BCD_DIG-1:0] layer_in_out [0:BINARY_WID-3];// in =  previous out , and  layer_in_out[0] would be final output
+/*
+reg [BCD_DIG-1:0] layer_in  [0:BINARY_WID-3];// in =  previous out , and  layer_in_out[0] would be final output
+reg [BCD_DIG-1:0] layer_out [0:BINARY_WID-3];// in =  previous out , and  layer_in_out[0] would be final output
+
+always@(*)begin
+    layer_in[BINARY_WID-3] = binary_code;
+end
+*/
+
+
+genvar row,col; 
+
+generate
+for(row = (BINARY_WID -3) ; row > 0 ; row = row -1)begin:row_layer
+    reg [BCD_DIG-1:0] layer_in; 
+    reg [BCD_DIG-1:0] layer_out;
+    if(row_layer == (BINARY_WID -3 ))
+        row_layer[row].layer_in = binary_code
+        for(col = row ; col  < BINARY_WID ; col = col + 4)begin:col_layer
+            always@(*)begin
+                row_layer[row].layer_out[col+:4] = 
+                        (row_layer[row].layer_in[col +:4] > 4 ) ? (row_layer[row].layer_in[col+:4] + 'd3) :row_layer[row].layer_in[col+:4] ;
+                end
+            end
+        //          Add_3_if_gt_4 Add_3_if_gt_4_inst(.in4bit(layer_in[row][col+:4]), .out4bit(layer_out[row][col+:4]));
+        end
+    //assign layer_out[row][row-1:0] = layer_in[row][row-1:0];
+    //if(col-4 > BINARY_WID)
+    //assign layer_out[row][BINARY_WID:col] = layer_in[row][row-1:0];
+
+    //assign layer_in[row-1] = layer_out[row];
+end
+endgenerate
+always@(*)begin
+    BCD_code = layer_in[0];
+end
+
+endmodule
+
+
+module Add_3_if_gt_4( in4bit, out4bit );
+    input [3:0] in4bit;
+    output[3:0] out4bit;
+    assign out4bit = (in4bit > 4) ? (in4bit + 4'd3) : in4bit;
+endmodule

@@ -1,0 +1,588 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Spring Course
+//   Lab09      : Coffee Maker
+//   Author     : 
+//                
+//
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : PATTERN.sv
+//   Module Name : PATTERN
+//   Release version : v1.0 (Release Date: May-2017)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+
+`include "Usertype_PKG.sv"
+
+program automatic PATTERN(input clk, INF.PATTERN inf);
+import usertype::*;
+
+
+class supply_input;
+        rand logic add_espresso;
+        rand logic add_milk;
+        rand logic add_chocolate;
+        rand logic add_froth;
+
+        rand logic[9:0] espresso_addnum;
+        rand logic[9:0] milk_addnum;
+        rand logic[9:0] chocolate_addnum;
+        rand logic[9:0] froth_addnum;   
+
+        function new(int seed);// ctor
+                this.srandom(seed);
+        endfunction
+
+        constraint limit{
+            espresso_addnum > 0;
+            milk_addnum >0;
+            chocolate_addnum >0;
+            froth_addnum > 0;   
+        }
+endclass
+
+
+class select_flavor;
+        randc flavor flavor_in;
+
+        function new(int seed);// ctor
+                this.srandom(seed);
+        endfunction
+        
+        constraint limit{
+            flavor_in inside {latte,cappuccino,mocha};
+        }
+endclass
+
+class select_size;
+    randc size size_in;
+    function new(int seed);
+            this.srandom(seed);
+    endfunction 
+    constraint limit 
+    {
+        size_in inside{s,m,l,xl};
+    }
+endclass
+
+class select_ratio;
+    randc logic [5:0] ratio_pair;
+    function new(int seed);
+            this.srandom(seed);
+    endfunction 
+endclass
+
+class random_interval;
+    rand int interval;
+    function new(int seed);
+            this.srandom(seed);
+    endfunction 
+    constraint limit 
+    {
+        interval inside{1,2,3};
+    }
+endclass
+
+supply_input    supply_input_rand = new(30);
+select_flavor   select_flavor_rand = new(30);
+select_size     select_size_rand = new(30);
+select_ratio    select_ratio_rand = new(30); 
+random_interval interval_rand = new(30); 
+
+//---------Recorded data of CM----------------------
+ingredient_window machine_info_inside;
+flavor machine_flavor_out;// To Compare The Ans
+
+//-------------- main ----------------------
+initial begin
+    reset();
+    // cross coverage
+    for(index_i = 0 ; index_i < 5 ; index = index + 1)begin// 5 times
+        for(index_flavor = 0; index_flavor < 3 ; index_flavor = index_flavor +1)begin
+            for(index_size = 0 ; index_size < 4; index_size = index_size +1)begin
+                supply_input(1);//full 
+                @(posedge out_valid) window_check;
+
+                void'(interval_rand.randomize());
+                repeat(interval_rand.interval)@(negedge clk);
+
+                press_buttom(select_flavor_rand, select_size_rand,select_ratio_rand);
+                @(posedge out_valid) window_check; flavor_out_check;
+
+                void'(interval_rand.randomize());
+                repeat(interval_rand.interval)@(negedge clk);
+            end
+        end
+    end
+    pass;
+
+
+end
+
+
+task reset(); begin
+    $display("****      RESET      ****");
+    inf.rst_n         <= 1;
+    #10;
+    inf.rst_n         <= 0;
+    inf.select_i  <= none;
+    inf.supply <= 10'd0;
+    inf.required_size <= no_size_inf;
+    inf.ratio <= 3'd0;
+    inf.flavor_btn <= no_coffee;
+    #10;
+    machine_info_inside.espresso.led <= red;
+    machine_info_inside.espresso.monitor <= 10'd0;
+    machine_info_inside.milk.led <= red;
+    machine_info_inside.milk.monitor <= 10'd0;
+    machine_info_inside.chocolate.led <= red;
+    machine_info_inside.chocolate.monitor <= 10'd0;
+    machine_info_inside.froth.led <= red;
+    machine_info_inside.froth.monitor <= 10'd0;
+    machine_flavor_out = no_coffee;
+
+    #5;
+    inf.rst_n  <= 1;
+    $display("**** Finish RESET    ****");
+end
+endtask
+
+//policy always fill to full
+task input_supply(full); begin
+    machine_flavor_out = no_coffee;
+    if (full == 0) begin
+        repeat(1) @(negedge clk);
+        i = supply_input_rand.randomize();
+        
+        supply_limit = 1023 - machine_info_inside.espresso.monitor;
+        if (supply_input_rand.espresso == 1'd1) begin
+            if (supply_limit >= supply_input_rand.e_supply_amount) begin
+                inf.select_i <= espresso;
+                inf.supply <= supply_input_rand.e_supply_amount;
+                machine_info_inside.espresso.monitor += supply_input_rand.e_supply_amount;
+                repeat(1) @(negedge clk);
+            end else begin 
+                if (supply_limit !== 0) begin
+                    inf.select_i <= espresso;
+                    inf.supply <= supply_limit;
+                    machine_info_inside.espresso.monitor += supply_limit;
+                    repeat(1) @(negedge clk);
+                end
+            end
+        end
+
+        supply_limit = 1023 - machine_info_inside.milk.monitor;
+        if (supply_input_rand.milk == 1'd1) begin
+            if (supply_limit >= supply_input_rand.m_supply_amount) begin
+                inf.select_i <= milk;
+                inf.supply <= supply_input_rand.m_supply_amount;
+                machine_info_inside.milk.monitor += supply_input_rand.m_supply_amount;
+                repeat(1) @(negedge clk);
+            end else begin 
+                if (supply_limit !== 0) begin
+                    inf.select_i <= milk;
+                    inf.supply <= supply_limit;
+                    machine_info_inside.milk.monitor += supply_limit;
+                    repeat(1) @(negedge clk);
+                end
+            end
+        end
+
+        supply_limit = 1023 - machine_info_inside.chocolate.monitor;
+        if (supply_input_rand.chocolate == 1'd1) begin
+            if (supply_limit >= supply_input_rand.c_supply_amount) begin
+                inf.select_i <= chocolate;
+                inf.supply <= supply_input_rand.c_supply_amount;
+                machine_info_inside.chocolate.monitor += supply_input_rand.c_supply_amount;
+                repeat(1) @(negedge clk);
+            end else begin 
+                if (supply_limit !== 0) begin
+                    inf.select_i <= chocolate;
+                    inf.supply <= supply_limit;
+                    machine_info_inside.chocolate.monitor += supply_limit;
+                    repeat(1) @(negedge clk);
+                end
+            end
+        end
+
+        supply_limit = 1023 - machine_info_inside.froth.monitor;
+        if (supply_input_rand.froth == 1'd1) begin
+            if (supply_limit >= supply_input_rand.f_supply_amount) begin
+                inf.select_i <= froth;
+                inf.supply <= supply_input_rand.f_supply_amount;
+                machine_info_inside.froth.monitor += supply_input_rand.f_supply_amount;
+                repeat(1) @(negedge clk);
+            end else begin 
+                if (supply_limit !== 0) begin
+                    inf.select_i <= froth;
+                    inf.supply <= supply_limit;
+                    machine_info_inside.froth.monitor += supply_limit;
+                    repeat(1) @(negedge clk);
+                end
+            end
+        end
+    end else begin
+        repeat(1) @(negedge clk);
+        i = supply_input_rand.randomize();
+        
+        supply_limit = 1023 - machine_info_inside.espresso.monitor;
+        if (supply_limit !== 0) begin
+            inf.select_i <= espresso;
+            inf.supply <= supply_limit;
+            machine_info_inside.espresso.monitor += supply_limit;
+            repeat(1) @(negedge clk);
+        end
+        supply_limit = 1023 - machine_info_inside.milk.monitor;
+        if (supply_limit !== 0) begin
+            inf.select_i <= milk;
+            inf.supply <= supply_limit;
+            machine_info_inside.milk.monitor += supply_limit;
+            repeat(1) @(negedge clk);
+        end
+        supply_limit = 1023 - machine_info_inside.chocolate.monitor;
+        if (supply_limit !== 0) begin
+            inf.select_i <= chocolate;
+            inf.supply <= supply_limit;
+            machine_info_inside.chocolate.monitor += supply_limit;
+            repeat(1) @(negedge clk);
+        end
+        supply_limit = 1023 - machine_info_inside.froth.monitor;
+        if (supply_limit !== 0) begin
+            inf.select_i <= froth;
+            inf.supply <= supply_limit;
+            machine_info_inside.froth.monitor += supply_limit;
+            repeat(1) @(negedge clk);
+        end
+    end
+
+    if (machine_info_inside.espresso.monitor > 0) 
+        machine_info_inside.espresso.led = green;
+    else 
+        machine_info_inside.espresso.led = red;
+
+    if (machine_info_inside.milk.monitor > 0) 
+        machine_info_inside.milk.led = green;
+    else 
+        machine_info_inside.milk.led = red;
+
+    if (machine_info_inside.chocolate.monitor > 0) 
+        machine_info_inside.chocolate.led = green;
+    else 
+        machine_info_inside.chocolate.led = red;
+
+    if (machine_info_inside.froth.monitor > 0) 
+        machine_info_inside.froth.led = green;
+    else 
+        machine_info_inside.froth.led = red;
+
+    inf.select_i <= none;
+    inf.supply <= 10'd0;
+end
+endtask
+
+
+task press_buttom(select_flavor select_flavor_rand, select_size select_size_rand, select_ratio select_ratio_rand); begin
+
+    if (select_flavor_rand.flavor_in == user_define) begin
+        inf.flavor_btn <= select_flavor_rand.flavor_in;
+        inf.required_size <= select_size_rand.size_in;
+        inf.ratio <= select_ratio_rand.espresso;
+        repeat(1)@(negedge clk);
+
+        inf.flavor_btn <= no_coffee;
+        inf.required_size <= no_size_inf;
+        inf.ratio <= select_ratio_rand.milk;
+        repeat(1)@(negedge clk);
+
+        inf.ratio <= select_ratio_rand.chocolate;
+        repeat(1)@(negedge clk);
+
+        inf.ratio <= select_ratio_rand.froth;
+        repeat(1)@(negedge clk);
+
+    end else begin
+        inf.flavor_btn <= select_flavor_rand.flavor_in;
+        inf.required_size <= select_size_rand.size_in;
+        repeat(1)@(negedge clk);
+
+    end
+
+    // calculate solution
+    gcd = 1;
+    for (i = 2; i < 8; i++) begin
+        if (select_ratio_rand.espresso % i == 0 &&
+            select_ratio_rand.milk % i == 0 &&
+            select_ratio_rand.chocolate % i == 0 &&
+            select_ratio_rand.froth % i == 0)
+            gcd = i; 
+    end
+
+    case (select_size_rand.size_in)
+        s: capacity = 240;
+        m: capacity = 360;
+        l: capacity = 480;
+        xl: capacity = 600;
+        default: capacity = 0;
+    endcase
+
+    total_ratio = (select_ratio_rand.espresso +
+                   select_ratio_rand.milk + 
+                   select_ratio_rand.chocolate +
+                   select_ratio_rand.froth) / gcd; 
+
+    case (select_flavor_rand.flavor_in)
+        latte: 
+            begin
+                required_espresso = capacity / 5 * 2;
+                required_milk = capacity / 5;
+                required_chocolate = 0;
+                required_froth = capacity / 5 * 2;
+            end
+        cappuccino: 
+            begin
+                required_espresso = capacity / 4 * 2;
+                required_milk = capacity / 4;
+                required_chocolate = 0;
+                required_froth = capacity / 4;
+            end
+        mocha: 
+            begin
+                required_espresso = capacity / 3;
+                required_milk = capacity / 3;
+                required_chocolate = capacity / 3;
+                required_froth = 0;
+            end
+        user_define:
+            begin
+                required_espresso = capacity / total_ratio * (select_ratio_rand.espresso / gcd);
+                required_milk = capacity / total_ratio * (select_ratio_rand.milk / gcd);
+                required_chocolate = capacity / total_ratio * (select_ratio_rand.chocolate / gcd); 
+                required_froth = capacity / total_ratio * (select_ratio_rand.froth / gcd);
+            end
+        default:
+            begin
+                required_espresso = 0;
+                required_milk = 0;
+                required_chocolate = 0;
+                required_froth = 0;
+            end
+    endcase
+
+    if (machine_info_inside.espresso.monitor >= required_espresso &&
+        machine_info_inside.milk.monitor >= required_milk &&
+        machine_info_inside.chocolate.monitor >= required_chocolate &&
+        machine_info_inside.froth.monitor >= required_froth) begin
+
+        machine_info_inside.espresso.monitor -= required_espresso;
+        machine_info_inside.milk.monitor -= required_milk;
+        machine_info_inside.chocolate.monitor -= required_chocolate;
+        machine_info_inside.froth.monitor -= required_froth;
+        machine_flavor_out = select_flavor_rand.flavor_in;
+
+        if (machine_info_inside.espresso.monitor > 0) 
+            machine_info_inside.espresso.led = green;
+        else 
+            machine_info_inside.espresso.led = red;
+
+        if (machine_info_inside.milk.monitor > 0) 
+            machine_info_inside.milk.led = green;
+        else 
+            machine_info_inside.milk.led = red;
+
+        if (machine_info_inside.chocolate.monitor > 0) 
+            machine_info_inside.chocolate.led = green;
+        else 
+            machine_info_inside.chocolate.led = red;
+
+        if (machine_info_inside.froth.monitor > 0) 
+            machine_info_inside.froth.led = green;
+        else 
+            machine_info_inside.froth.led = red;
+
+    end else begin
+        machine_flavor_out = no_coffee;
+        if (required_espresso > machine_info_inside.espresso.monitor ||
+            machine_info_inside.espresso.monitor == 0)
+            machine_info_inside.espresso.led = red;
+        else
+            machine_info_inside.espresso.led = green;
+
+        if (required_milk > machine_info_inside.milk.monitor ||
+            machine_info_inside.milk.monitor == 0)
+            machine_info_inside.milk.led = red;
+        else
+            machine_info_inside.milk.led = green;
+
+        if (required_chocolate > machine_info_inside.chocolate.monitor ||
+            machine_info_inside.chocolate.monitor == 0)
+            machine_info_inside.chocolate.led = red;
+        else
+            machine_info_inside.chocolate.led = green;
+
+        if (required_froth > machine_info_inside.froth.monitor ||
+            machine_info_inside.froth.monitor == 0)
+            machine_info_inside.froth.led = red;
+        else
+            machine_info_inside.froth.led = green;
+    end
+
+
+    inf.ratio <= 3'd0;
+    inf.flavor_btn <= no_coffee;
+    inf.required_size <= no_size_inf;
+end
+endtask
+
+task window_check();
+begin
+    if((inf.window.espresso.led !== machine_info_inside.espresso.led) ||
+       (inf.window.espresso.monitor !== machine_info_inside.espresso.monitor)) begin
+            $display("-------Espresso Window Wrong------- at time: %t",$time);
+            $display("Gold led:%d, Your led: %d",
+                machine_info_inside.espresso.led,
+                inf.window.espresso.led);
+            $display("Gold Monitor:%d, Your Monitor: %d",
+                machine_info_inside.espresso.monitor,
+                inf.window.espresso.monitor);
+            fail;
+    end
+
+    if((inf.window.milk.led !== machine_info_inside.milk.led) ||
+       (inf.window.milk.monitor !== machine_info_inside.milk.monitor)) begin
+            $display("-------Milk Window Wrong------- at time: %t",$time);
+            $display("Gold led:%d, Your led: %d",
+                machine_info_inside.milk.led,
+                inf.window.milk.led);
+            $display("Gold Monitor:%d, Your Monitor: %d",
+                machine_info_inside.milk.monitor,
+                inf.window.milk.monitor);
+            fail;
+    end
+
+    if((inf.window.chocolate.led !== machine_info_inside.chocolate.led) ||
+       (inf.window.chocolate.monitor !== machine_info_inside.chocolate.monitor)) begin
+            $display("-------Chocolate Window Wrong------- at time: %t",$time);
+            $display("Gold led:%d, Your led: %d",
+                machine_info_inside.chocolate.led,
+                inf.window.chocolate.led);
+            $display("Gold Monitor:%d, Your Monitor: %d",
+                machine_info_inside.chocolate.monitor,
+                inf.window.chocolate.monitor);
+            fail;
+    end
+
+    if((inf.window.froth.led !== machine_info_inside.froth.led) ||
+       (inf.window.froth.monitor !== machine_info_inside.froth.monitor)) begin
+            $display("-------Froth Window Wrong------- at time: %t",$time);
+            $display("Gold led:%d, Your led: %d",
+                machine_info_inside.froth.led,
+                inf.window.froth.led);
+            $display("Gold Monitor:%d, Your Monitor: %d",
+                machine_info_inside.froth.monitor,
+                inf.window.froth.monitor);
+            fail;
+    end
+end
+endtask
+
+//-----------Check flavor_out----------------
+
+task flavor_out_check;
+begin
+    if(inf.flavor_out !== machine_flavor_out) begin
+        $display("-------flavor_out Wrong-------%t",$time);
+        $display("Gold flavor_out: %d , not %d",
+            machine_flavor_out,
+            inf.flavor_out);
+	fail;
+    end	
+end
+endtask
+
+task pass;
+begin
+	$display("\n");
+	$display("88888888888888888888888                             888888888888888888888");
+	$display("8888888888888888888888                                8C88888888888888888");
+	$display("88888888888888888C.                                    o88888888888888888");
+	$display("888888888888888C.                                         C88888888888888");
+	$display("888888888888                                                C888888888888");
+	$display("8888888888o                                                  .O8888888888");
+	$display("88888888O                                                      :888888888");
+	$display("8888888                                                          O8888888");
+	$display("888888c                                                           o888888");
+	$display("88888:           @C                 c:                             o88888");
+	$display("888O. o      :8@@@@@@O           @@@@@@:          c@@@@8.           :8888");
+	$display("888: c@     @@@@@@@@@@@.      o@@@@@@@@@@c     :@@@@@@@@@O      .o:  8888");
+	$display("88. c@@@Oc.    .c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:.C@@@@@C c888");
+	$display("88  @@o c8@@@@@@8  o@@@@@@@@@@@@@@@@@@@@@@@@@@C:      O@@@@@@@@@@@@@. O88");
+	$display("88 cO :@@@@@@@@@@@@. C@@@@@@@@@@@@@@@@@@@@@.  o8@@@@@@c  c@@@@@@@@@@o c88");
+	$display("8O  c@@@C       :@@@@: @@@@@@@@@@@@@@@@@@c @@@@@@@@@@@@@@8 C@@@@@@@@8  O8");
+	$display("8C .@@@.         :@@@@ @@@@@@@@@@@@@@@@@. 8@@@o       @@@@@ c@@@@@@@@  C8");
+	$display("8o C@@@   c@@@c   o@@@cC@@@@@@@@@@@@@@@  @@@c           8@@o o@@@@@@@  o8");
+	$display("8C o@@@   :@@@.   O@@@:O@@@@@@@@@@@@@@O c@@8    @@@8    c@@O :@@@@@@@  c8");
+	$display("8C  @@@c         c@@@C @@@@@@@@@@@@@@@O :@@8    @@@@:   o@@O :@@@@@@@  C8");
+	$display("8O   :@@@@8o.:o8@@@O  O@@O 8@@@@@@@@@@@: C@@8          c@@@  @@@@@@@O .88");
+	$display("C8 :O  C@@@@@@@@@o  o@@    @@@@@@@@@@@@@  o@@@O:      @@@@O 8@@@@@@@c C88");
+	$display("88  O@@:    .    :8@@@@ 8@@@@@@@@@@@@@@@@: O@@@@@@@@@@@@8. @@@@@@@@8 :888");
+	$display("OC   o@@@@@@@@@@@@8:O@@@8@@@@@@@@@: O@@@@@@O:   ::::   .C@@@@@@@@@8  8C88");
+	$display("@8o   o@@@@@@@@@@@ :@@@@@@@@@8Oo:     @@@@@@@@@@8888@@@@@@@@@@@@@8     O@");
+	$display("@@8OO. O@@@@@@@@@@@@.:@@  8@@  C@c  :@@@@@@@@@@@@@@@@@@@@@@@@@@@o    @@@@");
+	$display("@@@@OOc c@@@@@@@@@@@O \033[91m  c. : .C:.c. \033[0mO@@@@@@@@@@@@@@@@@@@@@@@@@@@   C@@@@O");
+	$display("C@@@@8O  .@@@@@@@@@@@@@\033[91m oOOOOOOOOC \033[0m:@@@@@@@@@@@@@@@@@@@@@@@@@@@. o@@@@8OO");
+	$display("08@@@@@    .@@@@@@@@@@@@.\033[91m COOOOOO \033[0m.@@@@@@@@@@@@@@@@@@@@@@@@@:  . C@@8OO88");
+	$display("888@@@oo@8. .8@@@@@@@@@@@:\033[91m COOOOO \033[0m@@@@@@@@@@@@@@@@@@@@@@@@o  .O8O0:COC00O");
+	$display("880co0o88888:   o@@@@@@@@@@\033[91m COOC \033[0m@@@@@@@@@@@@@@@@@@@@@c   .@88888@o088O88");
+	$display("88C0888888888Oc   .O@@@@@@@@\033[91m :O. \033[0m@@@@@@@@@@@@@@@@@@8c   c888888CC@8O08888");
+	$display("8808888888CO888OCc.   c@@@@@@.  O@@@@@@@@@@@@@@@:     O88888888800O@80O88");
+	$display("O0O8888888888c8888OCCCC     cCOO8@8OOOCoc:.     cCO88888888888CC8@888888O");
+	$display("8888888C@OC8888888888OCCCCoc.             .coCCO88888888888888cCCC8888880");
+	$display("-------------------------------------------");
+	$display("Awesome!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+	$display("You Pass Lab09!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+	$display("-------------------------------------------");
+	$timeformat(-9, 5, " ns", 10); 
+        $display("Your total simulation time = %t", $time);
+	$write("\033[0m ");
+	$finish;
+end
+endtask
+
+task fail;
+begin
+	$display("OOOOOO          :O         .@@@@@@o       @@@@@@@C    8@@@@@@@8.        8:      8OOOOOO");
+	$display("OOOOO          .@@@@      @@@@@@@@@@C   @@@@@@@@@@@@@@@@@@@@@@@@O.    @@@@o     o8OOOOO");
+	$display("OOOO.         C@@@@@@@:.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:C@@@@@@@@@@@@@@@@@@@@.    COOOOO");
+	$display("OOO8    .@    @@@@@@@@@@@@@@O@@@@@@@@@@@@@@@@@@@@@@@@@  .O@@@@@@@@@@@@@@@@@@@O    OOOOO");
+	$display("OO8O    @@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@@@@@@@@@@@@o       .:cCo  @@@@@@@@C   OOOOO");
+	$display("OO8o   C@@@@@@@@@@@@@@@c  :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@O8OOoCO@@@@@@@@@@@@@@  c8OOO");
+	$display("OOO:  C@@@@@@c          c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@8.       cO@@@@@@@@@@@@  .OOOO");
+	$display("OOO.  @@@@@@@@@8c:coC8@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:   OO          :8@@@@@@@@.  oOOO");
+	$display("OOO   @@@@@@@@@8.           .o@@@@@@o c@@@@@@@@@@@@@: .O@@@C      @@@O  .8@@@@@@.  oOOO");
+	$display("OOO   @@@@@@@o   cO       @O:   8@@@@: c@@@@@@@@@@@@                      8@@@@@.  oOOO");
+	$display("OOO.  @@@@@@  c@@@@c      .     .8@@C:  @@@@@@@@@@@@@@8OoooCOO8@@@@8OOooO@@@@@@@.  oOOO");
+	$display("OOO.  8@@@@:              coOO@@@8    co@@@@@@@@@@@@@@@@@@@@@@@8      ..@@@@@@@@.  oOOO");
+	$display("OOO:  o@@@@@@@@@@@@@@@8C8@@@@@@@@@   :@@@@@@@@@@@@@@@@...... .@@@@@@@@OC@@@@@@@@.  oOOO");
+	$display("OO8O   O@@@@@@@@8       C@@@@@@@@@@@   O@@@@@@@@@@@@@@Cooo    C@@@@@@@@@@@@@@@@@   COOO");
+	$display("OOO8   o@@@@@@@@8::cO8@@@@@@@@@@@@@@@O8@@@@@@@@@@@@@@@@@O     .8@@@@@@@@@@@@@@@@   OOOO");
+	$display("OOO8.   @@@@@@@@@@@@@@@@Oo    @@@@@@@@@@@@@@@@@@@@@@@@@c  C@C  .@@@@@@@@@@@@@@@@  c8OOO");
+	$display("OOOOC   8@@@@@@@@@@@@@8    o@@@@@@@@@@@@@@@@@@@@@@@@@C  .@@@@8  @@@@@@@@@@@@@@@:  O8OOO");
+	$display("OOOO8o  .@@@@@@@@@@@@@@O  .   o@@@@@@@@@@@@@@@@@@@8c   O@@@@@@@@@@@@@@@@@@@@@@:   8OOOO");
+	$display("OOOOO8   .@@@@@@@@@@@@@@  O@8o    :o8@@@@@@@@@Oo    .8@@@@@@@@@@@@@@@@@@@@@@@@   oOOOOO");
+	$display("OOOOOOc   8@@@@@@@@@@@@@@@@@@@@@Oo                 o@@@@@@@@@@@@@@@@@@@@@@@@8.  o8OOOOO");
+	$display("OOOOOO8o   o@@@@@@@@@@@@@@@@@@@@@@@@c   C@@@@@:  c@@@@@@@@@@@@@@@@@@@@@@@@@@    8OOOOOO");
+	$display("OOOOOOO8    @@@@@@@@@@@@@@@@@@@@@@@@@@@@.     .O@@@@@@@@@@@@@@@@@@@@@@@@@@@:  c8OOOOOOO");
+	$display("OOOOOOOOOc   8@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@C. .@@@@@@@@@@@@@@@@@@@@@@@@    8OOOOOOOO");
+	$display("OOOOOOOOO8.   @@@@@@@@@@@@@@@@@@@@@@@@@@@@     .@@@@@@@@@@@@@@@@@@@@@@@@.   c8OOOOOOOOO");
+	$display("OOOOOOOOOO8C   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@o    COOOOOOOOOOO");
+	$finish;
+end
+endtask
+
+endprogram

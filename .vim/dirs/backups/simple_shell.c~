@@ -1,0 +1,54 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
+
+
+#define MAX_LINE 80       /* 80 chars per line, per command */
+
+int main(void)
+{
+    char *args[MAX_LINE/2 + 1];/* command line (of 80) has max of 40 arguments */
+    const int Buf_size = 1024;
+    char command[Buf_size];
+    char buf[Buf_size];
+    int  should_run = 1;
+    
+    int i, upper;
+        
+    while (should_run){   
+           pid_t pid;
+           i = 0;
+           printf("osh>");
+           fflush(stdout);
+           while( scanf("%s",buf) == 1 ){
+               if(i==0){
+                   strcpy(command,buf); 
+               }
+               else {
+               args[i-1] = malloc(strlen(buf)*sizeof(char)+1);
+               strcpy(args[i],buf);
+               }
+               i++;
+           }
+           
+           pid = fork();
+           if(pid == 0){
+                execvp(args[0],args);
+                printf("\nExecution Fail!\n");
+                return 0;
+           }
+           else {
+                printf("[%d] Done \n",pid);
+                exit(0);
+           }
+           while(i!=0){
+                free(args[i]);
+                i--;
+           }
+
+    }
+    
+    return 0;
+}

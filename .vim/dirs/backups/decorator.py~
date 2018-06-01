@@ -1,0 +1,87 @@
+#! /usr/bin/env python3
+# decorator exposed 1
+def expose(func):
+    func.exposed = True
+    return func
+
+@expose
+def myview():
+    # do stuff
+    return dict(records=records)
+
+# example2 
+
+def expose2(template):
+    def mark_exposed(func):
+        func.exposed = True
+        func.template = template
+        return func
+    return mark_exposed
+
+@expose2('view.html')
+def myview2():
+    #do stuff
+    return dict(records=records)
+
+
+# example3
+
+def memoize(func):
+    def check_cache(*args):
+        if not hasattr(func, 'results'):
+            func.results = {}
+        if args not in func.results:
+            func.results[args] = func(*args) # we could direct access through decorator
+        return func.results[args] #wrapping of result we could access
+    return check_cache # wrapping the function itself
+
+@memoize
+def find_user(user_id):
+    #'query databas and load User object'
+    return User.m.get(_id = user_id)
+
+# example4 , result is the same as 
+
+from decorator import decorator
+@decorator
+def memoize(func, *args):
+    if not hasattr(func, 'results'):
+        func.results = {}
+    if args not in func.results:
+        func.results[args] = func(*args)
+    return func.results[args]
+
+
+class say_something(object): # inherit from object class
+    def __init__(self, catchphrase):
+        self.catchphrase = catchphrase
+
+    def __call__(self):
+        print(self.catchphrase)
+
+
+
+print(myview.exposed)
+print(myview2.template)
+buzz_lightyear = say_something("To Infinity, and beyond !")
+
+buzz_lightyear()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

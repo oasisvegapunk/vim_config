@@ -1,0 +1,37 @@
+# Web server stuff
+
+import tornado.ioloop
+import tornado.web
+
+#Utitlity librarys
+
+import os.path
+
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("index.html")
+
+# This tells tornado where to find the static files
+
+
+settings =dict(
+        template_path = os.path.join(os.path.dirname("__file__"), "templates"),
+        static_path = os.path.join(os.path.dirname("__file__"), "static"),
+        debug =True
+        )
+
+
+#  r"/" root website address
+
+application = tornado.web.Application([(r'/',MainHandler),
+                                        (r'/hello', MainHandler)],
+        **settings)
+        
+
+
+if __name__ == "__main__":
+    print ("Server Running ...")
+    print ("Press Ctrl + c to close")
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()

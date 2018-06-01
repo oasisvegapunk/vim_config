@@ -1,0 +1,274 @@
+module OT(
+	clk,
+	rst_n,
+	in_valid,
+	op_mode,
+	in_real,
+	in_image,
+  	out_valid,
+	out_real,
+	out_image
+);
+
+input clk;
+input rst_n;
+input in_valid;
+input [1:0] op_mode;
+input [6:0] in_real;
+input [6:0] in_image;
+
+output reg out_valid;
+output reg [8:0]out_real;
+output reg [8:0]out_image;
+// ------------------- parameter ------------------
+parameter M_Addition = 2'd0;
+parameter M_Subtraction = 2'd1;
+parameter M_AB_Mult  = 2'd2;
+parameter M_BA_Mult  = 2'd3;
+parameter DECIMAL = 2;
+//----------------- STATE ------------
+parameter S_IDLE   = 2'd0;
+parameter S_INPUT  = 2'd1;
+parameter S_OP     = 2'd2;
+parameter S_OUTPUT = 2'd3;
+
+// ------------------- matrix register ------------------
+reg signed [6:0] M_REAL[1:8];
+reg signed [6:0] M_IM  [1:8];
+reg [1:0] mode_reg ;
+integer index = 0;
+// ------------------- output matrix --------------------
+reg [1:0] c_state, n_state;
+//-----------INPUT--------------------
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for(index = 8 ; index != 0 ; index = index -1)begin
+            M_REAL[index] <= 'b0;
+            M_IM[index]   <= 'b0;
+        end
+        mode_reg <= 'b0;
+    end
+    else if(in_valid)begin
+            M_REAL[8] <= in_real;
+            M_IM  [8] <= in_image;
+        for(index = 8 ; index != 1 ; index = index -1)begin
+            M_REAL[index-1] <= M_REAL[index];
+            M_IM[index-1]   <= M_IM[index];
+        end
+        mode_reg <= op_mode;
+    end
+    else begin
+        for(index = 8 ; index != 0 ; index = index -1)begin
+            M_REAL[index] <=  M_REAL[index];
+            M_IM[index]   <=  M_IM[index];
+        end
+        mode_reg <= mode_reg;
+    end
+end
+// ------------ COMPUTATAION LOGIC ---------------
+reg signed [7:0] tmp_sum_real[1:4];
+reg signed [7:0] tmp_sum_im[1:4];
+always @(*) begin
+    if(mode_reg == M_Addition)begin
+			tmp_sum_real[1] = (M_REAL[1]+M_REAL[5]);
+			tmp_sum_real[2] = (M_REAL[2]+M_REAL[6]);
+			tmp_sum_real[3] = (M_REAL[3]+M_REAL[7]);
+			tmp_sum_real[4] = (M_REAL[4]+M_REAL[8]);
+			tmp_sum_im[1]   = (M_IM[1]+M_IM[5])    ;
+			tmp_sum_im[2]   = (M_IM[2]+M_IM[6])    ;
+			tmp_sum_im[3]   = (M_IM[3]+M_IM[7])    ;
+			tmp_sum_im[4]   = (M_IM[4]+M_IM[8])    ;
+     end
+     else begin
+			tmp_sum_real[1] = (M_REAL[1]-M_REAL[5]);
+			tmp_sum_real[2] = (M_REAL[2]-M_REAL[6]);
+			tmp_sum_real[3] = (M_REAL[3]-M_REAL[7]);
+			tmp_sum_real[4] = (M_REAL[4]-M_REAL[8]);
+			tmp_sum_im[1]   =     (M_IM[1]-M_IM[5]);
+			tmp_sum_im[2]   =     (M_IM[2]-M_IM[6]);
+			tmp_sum_im[3]   =     (M_IM[3]-M_IM[7]);
+			tmp_sum_im[4]   =     (M_IM[4]-M_IM[8]);
+     end
+end
+reg signed [14:0] tmp_mult_real[1:4];
+reg signed [14:0] tmp_mult_im[1:4];
+always @(*)begin
+    if(mode_reg == M_AB_Mult)begin
+        tmp_mult_real[1] = (  (M_REAL[1]*M_REAL[5]) - (M_IM[1]*M_IM[5]))  + ((M_REAL[2]*M_REAL[7] - M_IM[2]*M_IM[7]));
+        tmp_mult_real[2] = (  (M_REAL[1]*M_REAL[6]) - (M_IM[1]*M_IM[6]))  + ((M_REAL[2]*M_REAL[8] - M_IM[2]*M_IM[8]));
+        tmp_mult_real[3] = (  (M_REAL[3]*M_REAL[5]) - (M_IM[3]*M_IM[5]))  + ((M_REAL[4]*M_REAL[7] - M_IM[4]*M_IM[7]));
+        tmp_mult_real[4] = (  (M_REAL[3]*M_REAL[6]) - (M_IM[3]*M_IM[6]))  + ((M_REAL[4]*M_REAL[8] - M_IM[4]*M_IM[8]));
+
+        tmp_mult_im[1] =   (  (M_REAL[1]*M_IM[5]) + (M_IM[1]*M_REAL[5]))  +  ((M_REAL[2]*M_IM[7]) +  (M_IM[2]*M_REAL[7]));
+        tmp_mult_im[2] =   (  (M_REAL[1]*M_IM[6]) + (M_IM[1]*M_REAL[6]))  +  ((M_REAL[2]*M_IM[8]) +  (M_IM[2]*M_REAL[8]));
+        tmp_mult_im[3] =   (  (M_REAL[3]*M_IM[5]) + (M_IM[3]*M_REAL[5]))  +  ((M_REAL[4]*M_IM[7]) +  (M_IM[4]*M_REAL[7]));
+        tmp_mult_im[4] =   (  (M_REAL[3]*M_IM[6]) + (M_IM[3]*M_REAL[6]))  +  ((M_REAL[4]*M_IM[8]) +  (M_IM[4]*M_REAL[8]));
+    end
+    else begin
+        tmp_mult_real[1] = (  (M_REAL[5]*M_REAL[1]) - (M_IM[5]*M_IM[1])  )  + ((M_REAL[6]*M_REAL[3] - M_IM[6]*M_IM[3]));
+        tmp_mult_real[2] = (  (M_REAL[5]*M_REAL[2]) - (M_IM[5]*M_IM[2])  )  + ((M_REAL[6]*M_REAL[4] - M_IM[6]*M_IM[4]));
+        tmp_mult_real[3] = (  (M_REAL[7]*M_REAL[1]) - (M_IM[7]*M_IM[1])  )  + ((M_REAL[8]*M_REAL[3] - M_IM[8]*M_IM[3]));
+        tmp_mult_real[4] = (  (M_REAL[7]*M_REAL[2]) - (M_IM[7]*M_IM[2])  )  + ((M_REAL[8]*M_REAL[4] - M_IM[8]*M_IM[4]));
+
+        tmp_mult_im[1] =   (  (M_REAL[5]*M_IM[1]  ) + (M_IM[5]*M_REAL[1]))  + ((M_REAL[6]*M_IM[3]) +  (M_IM[6]*M_REAL[3]));
+        tmp_mult_im[2] =   (  (M_REAL[5]*M_IM[2]  ) + (M_IM[5]*M_REAL[2]))  + ((M_REAL[6]*M_IM[4]) +  (M_IM[6]*M_REAL[4]));
+        tmp_mult_im[3] =   (  (M_REAL[7]*M_IM[1]  ) + (M_IM[7]*M_REAL[1]))  + ((M_REAL[8]*M_IM[3]) +  (M_IM[8]*M_REAL[3]));
+        tmp_mult_im[4] =   (  (M_REAL[7]*M_IM[2]  ) + (M_IM[7]*M_REAL[2]))  + ((M_REAL[8]*M_IM[4]) +  (M_IM[8]*M_REAL[4]));
+    end
+end
+
+reg signed [8:0] M_OUT_REAL_sum[1:4];
+reg signed [8:0] M_OUT_IM_sum[1:4];
+reg signed [8:0]tmp_r;
+reg signed [8:0]tmp_i;
+
+always@(*)begin
+    for(index = 1 ; index <=4 ; index = index +1)begin
+        tmp_r = tmp_sum_real[index][7:3];
+        tmp_i = tmp_sum_im[index][7:3];
+        M_OUT_REAL_sum[index] = tmp_r;
+        M_OUT_IM_sum[index] =  tmp_i;
+    end
+end
+/*
+integer_gen_8bit  rnd8_u1r(.in(tmp_sum_real[1]),.out(M_OUT_REAL_sum[1]));
+integer_gen_8bit  rnd8_u2r(.in(tmp_sum_real[2]),.out(M_OUT_REAL_sum[2]));
+integer_gen_8bit  rnd8_u3r(.in(tmp_sum_real[3]),.out(M_OUT_REAL_sum[3]));
+integer_gen_8bit  rnd8_u4r(.in(tmp_sum_real[4]),.out(M_OUT_REAL_sum[4]));
+
+integer_gen_8bit  rnd8_u1m(.in(tmp_sum_im[1]),.out(M_OUT_IM_sum[1]));
+integer_gen_8bit  rnd8_u2m(.in(tmp_sum_im[2]),.out(M_OUT_IM_sum[2]));
+integer_gen_8bit  rnd8_u3m(.in(tmp_sum_im[3]),.out(M_OUT_IM_sum[3]));
+integer_gen_8bit  rnd8_u4m(.in(tmp_sum_im[4]),.out(M_OUT_IM_sum[4]));
+*/
+
+reg [8:0] M_OUT_REAL_mult[1:4];
+reg [8:0] M_OUT_IM_mult[1:4];
+always@(*)begin
+    for(index = 1 ; index <=4 ; index = index +1)begin
+        M_OUT_REAL_mult[index] = tmp_mult_real[index][14:6];
+        M_OUT_IM_mult[index] = tmp_mult_im[index][14:6];
+    end
+end
+/*
+integer_gen_15bit rnd15_u1r(.in(tmp_mult_real[1]),.out(M_OUT_REAL_mult[1]));
+integer_gen_15bit rnd15_u2r(.in(tmp_mult_real[2]),.out(M_OUT_REAL_mult[2]));
+integer_gen_15bit rnd15_u3r(.in(tmp_mult_real[3]),.out(M_OUT_REAL_mult[3]));
+integer_gen_15bit rnd15_u4r(.in(tmp_mult_real[4]),.out(M_OUT_REAL_mult[4]));
+
+integer_gen_15bit rnd15_u1m(.in(tmp_mult_im[1]),.out(M_OUT_IM_mult[1]));
+integer_gen_15bit rnd15_u2m(.in(tmp_mult_im[2]),.out(M_OUT_IM_mult[2]));
+integer_gen_15bit rnd15_u3m(.in(tmp_mult_im[3]),.out(M_OUT_IM_mult[3]));
+integer_gen_15bit rnd15_u4m(.in(tmp_mult_im[4]),.out(M_OUT_IM_mult[4]));
+*/
+
+//-----------FLAG---------------------
+reg op_done;
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        op_done <= 1'b0;
+    end
+    else if(c_state == S_OP)begin
+        op_done <= 1'b1;
+    end
+    else if(c_state == S_OUTPUT)begin
+        op_done <= 1'b0;
+    end
+    else begin
+        op_done <= op_done;
+    end
+end
+
+reg [2:0] cnt_up;
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        cnt_up <= 'b1;
+    end
+    else if(n_state== S_OUTPUT)begin
+        cnt_up <= cnt_up + 'd1;
+    end
+    else begin
+        cnt_up <= 'b1;
+    end
+end
+
+
+//------------FSM---------------------
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)
+        c_state <= S_IDLE;
+    else 
+        c_state <= n_state;
+end
+always@(*)begin
+    case(c_state)
+        S_IDLE : n_state = (in_valid) ? S_INPUT :c_state;
+        S_INPUT: n_state = (!in_valid) ? S_OP   :c_state;
+        S_OP:    n_state = (op_done) ? S_OUTPUT:c_state;
+        S_OUTPUT:n_state = (cnt_up == 3'd4) ? S_IDLE :c_state;
+    endcase
+end
+
+
+//-----------OUT----------------------
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        out_real <= 'b0;
+        out_image <= 'b0;
+        out_valid <= 'b0;
+    end
+    else if(n_state == S_OUTPUT)begin
+        out_real <= (mode_reg[1])?  M_OUT_REAL_mult[cnt_up] : M_OUT_REAL_sum[cnt_up];
+        out_image<= (mode_reg[1])?  M_OUT_IM_mult[cnt_up] :   M_OUT_IM_sum[cnt_up];
+        out_valid <= 1'b1;
+    end
+    else begin
+        out_real <= 'b0;
+        out_image <= 'b0;
+        out_valid <= 'b0;
+    end
+end
+
+endmodule
+
+module  integer_gen_8bit(in,out);
+// 3 decimal
+    input [7:0] in;
+    output reg signed [8:0] out;
+    wire signed [4:0] in_value;
+    assign in_value = in[7:3];
+    always@(*)begin
+        if(in[7])begin // neg rnd
+            out = in_value;// (in[2]) ? (in_value - 1):in_value;
+        end
+        else begin
+            out = in_value;
+        end
+    end
+endmodule
+
+module  integer_gen_15bit(in,out);
+// 6 decimal
+    input [14:0] in;
+    output reg signed [8:0] out;
+    wire signed [8:0] in_value;
+    assign in_value = in[14:6];
+    always@(*)begin
+        if(in[14])begin // neg  rnd
+            out = in_value;//(in[5]) ? (in_value - 1):in_value;
+        end
+        else begin
+            out = in_value;
+        end
+    end
+endmodule
+
+
+
+
+
+
+
+
+
+

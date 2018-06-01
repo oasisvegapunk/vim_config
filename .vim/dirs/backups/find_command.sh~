@@ -1,0 +1,38 @@
+# find [path] [options] [tests] [actions]
+
+# path could be multipath  such as /  /home/willvegapunk/Programming
+
+#options -depth  # depth first
+#        -follow  # get into symbolic link
+#        -maxdepths N  # max N directory inside
+#        -mount         # Not find in the mounted diskdrive
+
+#tests
+
+#        -atime N   # access time N day ago
+#        -mtime N   # modify time N day ago
+#        -newer otherfile    #the file is newer than file: otherfile
+#        -name [pattern]
+#        -type C    #  f:file,  d:directory
+#        -user username  # the owner should be username
+
+#       ! or -not   : not in condition
+#      -a or -and   : and in multiple condition
+#      -o or -or    : or in multiple condition
+
+# when using multiple condition we should use bracket to seperate the command
+# example:
+# find . \(-newer X  -o -name "_*"\) -type f -print
+#  find the file newer than x or name started with _ , make sure it's file and then print out
+
+
+#actions
+
+#  -exec , execution the following command  , must end with \;
+#  -ok   , execution the following command with an interactive , must end with \; 
+#  -pirnt , print out all the finding
+#  -ls    , 執行 ls -dils
+
+# example :
+find .  -newer while2 -type f -exec ls -l {} \;
+

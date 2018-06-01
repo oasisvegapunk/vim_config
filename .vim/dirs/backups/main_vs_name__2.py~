@@ -1,0 +1,9 @@
+import main_vs_name__
+print ("First line of Second Module name is {}".format(__name__))
+main_vs_name__.main()
+
+def main():
+    print ("main file execute name is {}".format(__name__))
+
+if __name__ == '__main__':
+    main()

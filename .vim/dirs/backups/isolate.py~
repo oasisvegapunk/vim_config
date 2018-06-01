@@ -1,0 +1,227 @@
+import json
+import os
+import shutil
+import subprocess as sp
+
+
+def copy(frm, to):
+    if os.path.isdir(frm):
+        to = os.path.join(to, frm.split("/")[-1])
+        shutil.copytree(frm, to)
+    else:
+        shutil.copy(frm, to)
+
+
+class Sandbox:
+    BASE_DIR = '/var/local/lib/isolate/'
+
+    class SandboxOption:
+
+        def __init__(self):
+            meta = {}
+            meta['dir'] = {
+                '/var': None,
+                '/tmp': None
+            }
+            meta['env'] = dict()
+            meta["cgroup"] = True  # --cg
+            meta["full_env"] = True  # --full-env
+            meta["stdin"] = ''  # --stdin
+            meta["stdout"] = ''  # --stdout
+            meta["stderr"] = ''  # --stderr
+            meta["meta"] = 'meta'  # --meta
+            meta["memory_limit"] = 0  # --mem
+            meta['proc_limit'] = 0  # --processes
+            meta['time_limit'] = 0  # --time
+            meta['output_limit'] = 65535  # --fsize
+            self._meta = meta
+            self.set_env(LD_LIBRARY_PATH='/usr/local/lib/')
+            self.set_env(PATH='/usr/lib/jvm/java-8-oracle/bin/')
+
+        def set_env(self, **kwargs):
+            for var in kwargs:
+                kwargs[var] = '%s:%s' % (
+                    os.environ.get(var) or '', kwargs[var])
+            self._meta['env'].update(kwargs)
+
+        def set_dir(self, dirs):
+            self._meta['dir'].update(dirs)
+
+        def clear_dir(self):
+            self._meta['dir'] = {
+                '/var': None,
+                '/tmp': None
+            }
+
+        def set_options(self, **kwargs):
+            self._meta.update(kwargs)
+
+        def __getitem__(self, index):
+            return self._meta[index]
+
+    def __init__(self, box_id, isolate):
+        self._isolate = isolate
+        self._box_id = box_id
+        self._opt = self.SandboxOption()
+        self.meta = {}
+
+    def set_options(self, **kwargs):
+        self._opt.set_options(**kwargs)
+
+    def Init(self):
+        cmd = [self._isolate, '--box-id', str(self._box_id)]
+        if self._opt['cgroup']:
+            cmd += ['--cg']
+        cmd += ['--init']
+        print('[Vega] isolate.py line71:',cmd)
+        return sp.call(cmd)
+
+    def Delete(self):
+        cmd = [self._isolate, '--box-id', str(self._box_id), '--cleanup']
+        #print(cmd)
+        return sp.call(cmd)
+
+    def _update_meta(self):
+        self.meta = {}
+        with open(self.meta_path) as f:
+            for x in f.read().splitlines():
+                x = x.split(":")
+                self.meta[x[0]] = x[1]
+        if 'csw-forced' in self.meta:
+            self.meta.pop('csw-forced')
+        if 'csw-voluntary' in self.meta:
+            self.meta.pop('csw-voluntary')
+        if 'message' not in self.meta:
+            self.meta['message'] = ''
+        if 'status' not in self.meta:
+            self.meta['status'] = ''
+        if 'time-wall' in self.meta:
+            self.meta['real-time-usage'] = \
+                int(float(self.meta.pop('time-wall')) * 1000)
+        if 'time' in self.meta:
+            self.meta['cpu-time-usage'] = \
+                int(float(self.meta.pop('time')) * 1000)
+        if 'max-rss' in self.meta:
+            self.meta['memory-usage'] = int(self.meta.pop('max-rss'))
+        with open(self.meta_path, 'w') as f:
+            f.write(json.dumps(self.meta))
+
+    def Exec(self, exec_cmd):
+        cmd = [self._isolate, '--box-id', str(self._box_id)]
+        if self._opt['full_env']:
+            cmd += ['--full-env']
+        if self._opt['stdin']:
+            cmd += ['--stdin=%s' % self._opt['stdin']]
+        if self._opt['stdout']:
+            cmd += ['--stdout=%s' % self._opt['stdout']]
+        if self._opt['stderr']:
+            cmd += ['--stderr=%s' % self._opt['stderr']]
+        if self._opt['meta']:
+            cmd += ['--meta=%s' % self.meta_path]
+        cmd += ['--mem=%s' % str(self._opt['memory_limit'])]
+        cmd += ['--cg-mem=%s' % str(self._opt['memory_limit'])]
+        if self._opt['proc_limit']:
+            cmd += ['--processes=%s' % str(self._opt['proc_limit'])]
+        elif self._opt['proc_limit'] == 0:
+            cmd += ['--processes']
+        if self._opt['time_limit']:
+            cmd += ['--time=%s' % str(int(self._opt['time_limit']) / 1000)]
+        if self._opt['time_limit']:
+            cmd += ['--wall-time=%s' % str(1.5 * int(self._opt['time_limit']) /
+                                           1000)]
+        if self._opt['output_limit']:
+            cmd += ['--fsize=%s' % str(self._opt['output_limit'])]
+        if self._opt['env']:
+            for (key, val) in self._opt['env'].items():
+                cmd += ['--env', '%s=%s' % (key, val)]
+        if self._opt['dir']:
+            for (out, _in) in self._opt['dir'].items():
+                if _in:
+                    cmd += ['--dir', '%s=%s' % (out, _in)]
+                else:
+                    cmd += ['--dir', out]
+        cmd += ['--extra-time', '0.20', '--stack', '0', '--run', '--', '/usr/bin/env']
+        cmd += exec_cmd
+        #print("Vega Run: ", exec_cmd)
+        #print("Vega Final: ", cmd)
+        #print("Vega env: ", os.environ)
+        return_value = sp.call(cmd, env=os.environ)
+        self._update_meta()
+        return return_value
+
+    @property
+    def meta_path(self):
+        return os.path.join(self.box_dir, self._opt['meta'])
+
+    @property
+    def box_dir(self):
+        return os.path.join(Sandbox.BASE_DIR, str(self._box_id), 'box')
+
+    def trans_relative_path_to_box(self, path):
+        while path.startswith('/'):
+            path = path[1:]
+        return os.path.join(self.box_dir, path)
+
+    def Import(self, frm, to=''):
+        try:
+            copy(frm, self.trans_relative_path_to_box(to))
+        except :
+            print("isolate.py Import Error")
+
+    def Export(self, frm, to):
+        copy(self.trans_relative_path_to_box(frm), to)
+
+
+if __name__ == "__main__":
+    TESTDATA_SET = [
+        ('C++14', './test/isolate/testc++14.cpp', (
+            ['/usr/bin/env', 'g++', '-std=c++14', '-O2', 'testc++14.cpp'],
+            ['./a.out']
+        )),
+        ('C++11', './test/isolate/testc++11.cpp', (
+            ['/usr/bin/env', 'g++', '-std=c++11', '-O2', 'testc++11.cpp'],
+            ['./a.out']
+        )),
+        ('C++', './test/isolate/testc++.cpp', (
+            ['/usr/bin/env', 'g++', '-O2', 'testc++.cpp'],
+            ['./a.out']
+        )),
+        ('C11', './test/isolate/testc.c', (
+            ['/usr/bin/env', 'gcc', '-lm', '-O2', 'testc.c'],
+            ['./a.out']
+        )),
+        ('C99', './test/isolate/testc.c', (
+            ['/usr/bin/env', 'gcc', '-lm', '-O2', 'testc.c'],
+            ['./a.out']
+        )),
+        ('Python2', './test/isolate/testpy2.py', (
+            ['/usr/bin/env', 'python2', '-m', 'py_compile', 'testpy2.py'],
+            ['/usr/bin/env', 'python2', 'testpy2.py']
+        )),
+        ('Python3', './test/isolate/testpy3.py', (
+            ['/usr/bin/env', 'python3', '-m', 'py_compile', 'testpy3.py'],
+            ['/usr/bin/env', 'python3', 'testpy3.py']
+        )),
+        ('Java', './test/isolate/testjava.java', (
+            ['/usr/bin/env', 'javac', 'testjava.java'],
+            ['/usr/bin/env', 'java', 'testjava']
+        )),
+    ]
+    error_cnt = 0
+    for testdata in TESTDATA_SET:
+        name, filepath, commands = testdata
+        #print('Testing', name, '...')
+        #print('[Vega]',testdata)
+        s = Sandbox(1, 'isolate')
+        s.set_options(**{
+            'time_limit': 10000,
+            'memory_limit': 65536 * 200,
+            'proc_limit': 0
+        })
+        error_cnt += s.Init() != 0
+        s.Import(filepath)
+        for command in commands:
+            error_cnt += s.Exec(command) != 0
+        error_cnt += s.Delete() != 0
+    import sys
+    sys.exit(error_cnt != 0)

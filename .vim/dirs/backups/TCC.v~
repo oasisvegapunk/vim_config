@@ -1,0 +1,100 @@
+module TCC(in_p0, in_p1, in_p2, in_p3, opt,
+           out_p0, out_p1,out_p2, out_p3);
+input [3:0] in_p0,in_p1,in_p2,in_p3;
+input [1:0] opt;
+
+output [3:0] out_p0, out_p1,out_p2, out_p3;
+
+parameter NO_OP = 2'd0,
+          INVERSE = 2'd1,
+          RETROGATE = 2'd2,
+          RETROGATE_INVERSE = 2'd3;
+reg [15:0] after_op;
+always@(*)begin
+    case(opt)
+        NO_OP:
+            after_op = {in_p0,in_p1,in_p2,in_p3};
+        INVERSE:
+            after_op = inverse({in_p0,in_p1,in_p2,in_p3});
+        RETROGATE:
+            after_op = {in_p3,in_p2,in_p1,in_p0};
+        RETROGATE_INVERSE:
+            after_op = inverse({in_p3,in_p2,in_p1,in_p0});
+        default:
+            after_op = 'bz;
+    endcase
+end
+
+NormalOrder norm(after_op,{out_p0,out_p1,out_p2,out_p3});
+
+function [15:0] inverse;
+    input signed [3:0] inv0,inv1,inv2,inv3;
+    wire [3:0] after_sub[0:3];
+    assign after_sub[1] = inv0 - (inv1 - inv0);
+    assign after_sub[2] = inv0 - (inv2 - inv0);
+    assign after_sub[3] = inv0 - (inv3 - inv0);
+    assign inverse[15:12] = inv0;
+    assign inverse[11: 8] = (after_sub[1][2])? {after_sub[1][3],1'b0, after_sub[1][1:0]} : inv0;
+    assign inverse[ 7: 4] = (after_sub[2][2])? {after_sub[2][3],1'b0, after_sub[2][1:0]} : inv0;
+    assign inverse[ 3: 0] = (after_sub[3][2])? {after_sub[3][3],1'b0, after_sub[3][1:0]} : inv0;
+endfunction
+
+
+end
+
+
+endmodule
+
+
+module SpecialSub(subed,sub,out);
+    input signed [3:0] subed,sub ;
+    output [3:0] out;
+    wire [3:0] tempout = subed - sub;
+    assign out = (tempout[2]) ? {tempout[3], 1'b0, tempout[1:0]}  : tempout;
+endmodule
+
+
+module NormalOrder( in , out);
+    input [15:0] in;
+    output [15:0] out;
+
+// ------------ Wiring ---------------------    
+    wire [3:0] in_p[0:3];
+    reg  [3:0] out_p[0:3];
+
+    assign in_p[0:3] = {in[15:12],in[11:8],in[7:4],in[3:0]};
+    assign out[15:0]  ={out_p[3],out_p[2],out_p[1],out_p[0]};
+
+//------------After Sub 1st tone -------
+    wire [3:0] after_sub[0:3];
+    SpecialSub sub0(.subed(in_p[0]),.sub(in_p[0]),.out(after_sub[0]));
+    SpecialSub sub1(.subed(in_p[1]),.sub(in_p[0]),.out(after_sub[1]));
+    SpecialSub sub2(.subed(in_p[2]),.sub(in_p[0]),.out(after_sub[2]));
+    SpecialSub sub3(.subed(in_p[3]),.sub(in_p[0]),.out(after_sub[3]));
+// --------- Sorting ------------------
+
+    wire [3:0] temp1,temp3,temp3;
+    assign temp1 = after_sub[3] - after_sub[2];
+    assign temp2 = after_sub[2] - after_sub[1];
+    assign temp3 = after_sub[3] - after_sub[1];
+    always@(*)begin
+        case({temp1[3],temp2[3],temp3[3]})
+            3'b000: // 3 > 2 > 1
+                    out_p[3:0] = {4'b0, after_sub[1], after_sub[2], after_sub[3]};
+            3'b010: // 3 > 1 > 2
+                    out_p[3:0] = {4'b0, after_sub[2], after_sub[1], after_sub[3]};
+            3'b101: // 2 > 3 > 1
+                    out_p[3:0] = {4'b0, after_sub[1], after_sub[3], after_sub[2]};
+            3'b101: // 2 > 1 > 3
+                    out_p[3:0] = {4'b0, after_sub[3], after_sub[1], after_sub[2]};
+            3'b111: // 1 > 2 > 3
+                    out_p[3:0] = {4'b0, after_sub[3], after_sub[2], after_sub[1]};
+            3'b011: // 1 > 3 > 2
+                    out_p[3:0] = {4'b0, after_sub[2], after_sub[3], after_sub[1]};
+            default:
+                    out_p[3:0] = 16'bz;
+        endcase
+    end
+endmodule
+
+

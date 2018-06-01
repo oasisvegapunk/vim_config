@@ -1,0 +1,4 @@
+#! /bin/bash
+
+iverilog -o GCC testfixture.v GCC.v
+vvp  GCC > Error

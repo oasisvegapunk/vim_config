@@ -1,0 +1,577 @@
+module LOCK(
+	input	clk,
+	input	rst_n,
+	input	in_valid,
+	input	clock,
+	input	[1:0] mode,	
+	input	[4:0] in,	
+	input	[4:0] in_p1,	
+	
+	output	reg out_valid,
+	output	reg [2:0]circle,
+	output	reg [7:0]value
+);
+
+// take the input 
+parameter INITIAL        = 3'd0;
+parameter INPUT          = 3'd1;
+parameter DECIPHER_C1    = 3'd2;
+parameter DECIPHER_C2    = 3'd3;
+parameter DECIPHER_C3    = 3'd4;
+parameter OPT_PW_CHECK   = 3'd5;
+parameter DECIPHER_DONE  = 3'd6;
+
+parameter ONE  = 2'b00;
+parameter TWO  = 2'b01;
+parameter FOUR = 2'b10;
+
+reg [4:0] circle1[1:8], circle2[1:8], circle3[1:8];
+
+reg [1:0] opt;
+reg [4:0] pivot;
+
+reg [3:0] c_state, n_state;
+reg from_C2,from_C3,from_Update,no_next_code;
+
+wire  rulecheck_c1,rulecheck_c2,rulecheck_c3;// VEGA
+reg [7:0] n_bin_code1_r,n_bin_code2_r,n_bin_code3_r, parallel_comp_1_out_r, parallel_comp_2_out_r, parallel_comp_3_out_r;
+reg [4:0] shift_value1, shift_value2, shift_value3;
+
+reg [3:0] out_ticktock;
+wire [7:0] min_heap_value;
+wire [3:0] next_to_kill;
+
+reg [4:0] min_of_sum;
+wire [3:0] shift_value1_w,shift_value2_w,shift_value3_w;
+wire [7:0] n_bin_code1_w,n_bin_code2_w,n_bin_code3_w;
+//------------------------- INPUT -----------------------------------
+reg [4:0] input_cnt ;
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        input_cnt <= 'b0;
+    end
+    else begin
+        input_cnt <= (in_valid) ? input_cnt + 1 : 'd1;
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        opt <= 'b0;
+        pivot <= 'b0;
+    end
+    else begin
+            opt <= (input_cnt == 'd1 && in_valid) ? mode : opt; // keep the value
+            pivot <= (input_cnt == 'd1 && in_valid) ? in_p1 : pivot;
+    end
+end
+
+integer i;
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for ( i = 1 ; i <= 8 ; i = i +1 )begin
+            circle1[i] <= 'b0;
+            circle2[i] <= 'b0;
+            circle3[i] <= 'b0;
+        end
+    end
+    else if(in_valid)begin
+        case(input_cnt)
+            'd1: circle1[ 1] <=   in;
+            'd2: circle1[ 2] <=   in;
+            'd3: circle1[ 3] <=   in;
+            'd4: circle1[ 4] <=   in;
+            'd5: circle1[ 5] <=   in;
+            'd6: circle1[ 6] <=   in;
+            'd7: circle1[ 7] <=   in;
+            'd8: circle1[ 8] <=   in;
+           'd 9: circle2[ 1] <=   in;
+           'd10: circle2[ 2] <=   in;
+           'd11: circle2[ 3] <=   in;
+           'd12: circle2[ 4] <=   in;
+           'd13: circle2[ 5] <=   in;
+           'd14: circle2[ 6] <=   in;
+           'd15: circle2[ 7] <=   in;
+           'd16: circle2[ 8] <=   in;
+           'd17: circle3[ 1] <=   in;
+           'd18: circle3[ 2] <=   in;
+           'd19: circle3[ 3] <=   in;
+           'd20: circle3[ 4] <=   in;
+           'd21: circle3[ 5] <=   in;
+           'd22: circle3[ 6] <=   in;
+           'd23: circle3[ 7] <=   in;
+           'd24: circle3[ 8] <=   in;
+        default: begin    
+            for ( i = 1 ; i <= 8 ; i = i +1 )begin
+                circle1[i] <= circle1[i] ;
+                circle2[i] <= circle2[i] ;
+                circle3[i] <= circle3[i] ;
+            end
+        end
+        endcase
+    end
+    else begin
+            for ( i = 1 ; i <= 8 ; i = i +1 )begin
+                circle1[i] <= circle1[i] ;
+                circle2[i] <= circle2[i] ;
+                circle3[i] <= circle3[i] ;
+            end
+    end
+end
+
+wire [4:0] shifter_out1[1:8];
+wire [4:0] shifter_out2[1:8];
+wire [4:0] shifter_out3[1:8];
+
+
+
+// module parallel_comp( reg1,reg2,reg3,reg4,reg5,reg6,reg7,reg8, in, out );
+wire [7:0] parallel_comp_1_out;
+parallel_comp pc_1(circle1[ 1], circle1[ 2], circle1[ 3], circle1[ 4], circle1[ 5], circle1[ 6], circle1[ 7], circle1[ 8],
+                   pivot, parallel_comp_1_out);
+
+index_shifter shift_c1(
+    circle1[ 1], circle1[ 2], circle1[ 3], circle1[ 4], 
+    circle1[ 5], circle1[ 6], circle1[ 7], circle1[ 8],
+    shift_value1,
+    shifter_out1[1],shifter_out1[2],shifter_out1[3],shifter_out1[4],
+    shifter_out1[5],shifter_out1[6],shifter_out1[7],shifter_out1[8]);
+
+
+wire [7:0] parallel_comp_2_out;
+parallel_comp pc_2(circle2[ 1], circle2[ 2], circle2[ 3], circle2[ 4], circle2[ 5], circle2[ 6], circle2[ 7], circle2[ 8],
+                   pivot, parallel_comp_2_out);
+
+index_shifter shift_c2(
+    circle2[ 1], circle2[ 2], circle2[ 3], circle2[ 4], 
+    circle2[ 5], circle2[ 6], circle2[ 7], circle2[ 8],
+    shift_value2,
+    shifter_out2[1],shifter_out2[2],shifter_out2[3],shifter_out2[4],
+    shifter_out2[5],shifter_out2[6],shifter_out2[7],shifter_out2[8]);
+
+wire [7:0] parallel_comp_3_out;
+parallel_comp pc_3(circle3[ 1], circle3[ 2], circle3[ 3], circle3[ 4], circle3[ 5], circle3[ 6], circle3[ 7], circle3[ 8],
+                   pivot, parallel_comp_3_out);
+
+index_shifter shift_c3(
+    circle3[ 1], circle3[ 2], circle3[ 3], circle3[ 4], 
+    circle3[ 5], circle3[ 6], circle3[ 7], circle3[ 8],
+    shift_value3,
+    shifter_out3[1],shifter_out3[2],shifter_out3[3],shifter_out3[4],
+    shifter_out3[5],shifter_out3[6],shifter_out3[7],shifter_out3[8]);
+
+
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        from_C2     <= 'b0;
+        from_C3     <= 'b0;
+    end
+    else begin
+        case(c_state)
+            INITIAL,
+            INPUT:begin
+                from_C2     <= 'b0;
+                from_C3     <= 'b0;
+            end
+            DECIPHER_C1:begin
+                from_C2 <= ( parallel_comp_1_out_r == n_bin_code1_r ) ? 'b0 : from_C2;  
+                from_C3 <= from_C3;
+            end
+            DECIPHER_C2:begin
+                from_C2 <= (parallel_comp_2_out_r == 8'b0000_0000)? 'b1 : 'b0;
+                from_C3 <= ( parallel_comp_2_out_r == n_bin_code2_r ) ? 'b0 : from_C3;
+            end
+            DECIPHER_C3:begin
+                from_C2 <= from_C2;
+                from_C3 <= ( parallel_comp_3_out_r == 8'b0000_0000 ) ? 'b1 : 'b0;
+            end
+            default:begin     
+                from_C2 <= from_C2;
+                from_C3 <= from_C3;
+            end
+        endcase
+    end
+end
+
+
+
+//Back To Control:
+//      parallel_comp_3_out, 
+//      
+//Out From Control:
+//      shift_value[1-3]
+//For Rule Check:
+//      shifter_out1[1:8],shifter_out2[1:8],shifter_out3[1:8]
+
+//---------------------------------Turning Wheels---------------------------
+
+
+
+always@(posedge clk)begin
+    case(c_state)
+        INITIAL:begin
+            parallel_comp_1_out_r <= 7'b0;
+            parallel_comp_2_out_r <= 7'b0;
+            parallel_comp_3_out_r <= 7'b0;
+        end
+        INPUT:begin
+            parallel_comp_1_out_r <= parallel_comp_1_out;
+            parallel_comp_2_out_r <= 7'b0;
+            parallel_comp_3_out_r <= 7'b0;
+        end
+
+        DECIPHER_C1:begin
+            parallel_comp_1_out_r <= (!from_C2 && rulecheck_c1) ? parallel_comp_1_out_r :n_bin_code1_w;//Vega
+            parallel_comp_2_out_r <= parallel_comp_2_out;
+            parallel_comp_3_out_r <= parallel_comp_3_out_r;
+        end
+        DECIPHER_C2:begin
+            parallel_comp_1_out_r <= parallel_comp_1_out_r;
+            parallel_comp_2_out_r <= (!from_C3 && rulecheck_c2 ) ? parallel_comp_2_out_r :n_bin_code2_w;//Vega
+            parallel_comp_3_out_r <= parallel_comp_3_out;
+        end
+        DECIPHER_C3:begin
+            parallel_comp_3_out_r <= (rulecheck_c3) ? parallel_comp_3_out_r :n_bin_code3_w;
+            parallel_comp_2_out_r <= parallel_comp_2_out_r;
+            parallel_comp_1_out_r <= parallel_comp_1_out_r;
+        end
+        default:begin
+            parallel_comp_1_out_r <= parallel_comp_1_out_r;
+            parallel_comp_2_out_r <= parallel_comp_2_out_r;
+            parallel_comp_3_out_r <= parallel_comp_3_out_r;
+        end
+    endcase
+end
+
+shift_value_gen shift_value_gen_inst1(parallel_comp_1_out_r, shift_value1_w,n_bin_code1_w);
+shift_value_gen shift_value_gen_inst2(parallel_comp_2_out_r, shift_value2_w,n_bin_code2_w);
+shift_value_gen shift_value_gen_inst3(parallel_comp_3_out_r, shift_value3_w,n_bin_code3_w);
+
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+            {shift_value1,n_bin_code1_r}   <= {3'd0,8'b0};
+            {shift_value2,n_bin_code2_r}   <= {3'd0,8'b0};
+            {shift_value3,n_bin_code3_r}   <= {3'd0,8'b0};
+    end
+    case(c_state)
+        INITIAL,
+        INPUT:begin
+            {shift_value1,n_bin_code1_r}   <= {3'd0,n_bin_code1_w};//{3'd0,8'b0};
+            {shift_value2,n_bin_code2_r}   <= {3'd0,8'b0};
+            {shift_value3,n_bin_code3_r}   <= {3'd0,8'b0};
+        end
+        DECIPHER_C1:begin
+            {shift_value1,n_bin_code1_r}   <= (rulecheck_c1 & ! from_C2)? {shift_value1,n_bin_code1_r} :{shift_value1_w,n_bin_code1_w};
+            {shift_value2,n_bin_code2_r}   <= {shift_value2,n_bin_code2_w};//{shift_value2,n_bin_code2_r};
+            {shift_value3,n_bin_code3_r}   <= {shift_value3,n_bin_code3_r};
+        end
+        DECIPHER_C2:begin
+            {shift_value1,n_bin_code1_r}   <= {shift_value1,n_bin_code1_r};
+            {shift_value2,n_bin_code2_r}   <= (rulecheck_c2 & ! from_C3)? {shift_value2,n_bin_code2_r} :{shift_value2_w,n_bin_code2_w};
+            {shift_value3,n_bin_code3_r}   <= {shift_value3,n_bin_code3_w};//{shift_value3,n_bin_code3_r};
+        end
+        DECIPHER_C3:begin
+            {shift_value1,n_bin_code1_r}   <= {shift_value1,n_bin_code1_r};
+            {shift_value2,n_bin_code2_r}   <= {shift_value2,n_bin_code2_r};
+            {shift_value3,n_bin_code3_r}  <=  (rulecheck_c3)? {shift_value3,n_bin_code3_r} :{shift_value3_w,n_bin_code3_w};
+        end
+        default:begin
+            {shift_value1,n_bin_code1_r}   <= {shift_value1,n_bin_code1_r};
+            {shift_value2,n_bin_code2_r}   <= {shift_value2,n_bin_code2_r};
+            {shift_value3,n_bin_code3_r}   <= {shift_value3,n_bin_code3_r};
+        end
+                
+    endcase
+       
+end
+wire [4:0] sum_of_shift;
+wire [7:0] sum_of_circle[1:8];
+assign sum_of_circle[1]= (shifter_out1[1] + shifter_out2[1] ) + shifter_out3[1];
+assign sum_of_circle[2]= (shifter_out1[2] + shifter_out2[2] ) + shifter_out3[2];
+assign sum_of_circle[3]= (shifter_out1[3] + shifter_out2[3] ) + shifter_out3[3];
+assign sum_of_circle[4]= (shifter_out1[4] + shifter_out2[4] ) + shifter_out3[4];
+assign sum_of_circle[5]= (shifter_out1[5] + shifter_out2[5] ) + shifter_out3[5];
+assign sum_of_circle[6]= (shifter_out1[6] + shifter_out2[6] ) + shifter_out3[6];
+assign sum_of_circle[7]= (shifter_out1[7] + shifter_out2[7] ) + shifter_out3[7];
+assign sum_of_circle[8]= (shifter_out1[8] + shifter_out2[8] ) + shifter_out3[8];
+
+
+assign rulecheck_c1 = (shifter_out1[1] == pivot )? 'b1: 'b0;
+rule_check_in_out_circle    rule_check_in_out_circle_inst1
+                            (shifter_out1[1], shifter_out1[3], shifter_out1[5], shifter_out1[7],    
+                            shifter_out2[1], shifter_out2[3], shifter_out2[5], shifter_out2[7],opt, rulecheck_c2);
+
+
+rule_check_in_out_circle    rule_check_in_out_circle_inst2
+                            (shifter_out2[1], shifter_out2[3], shifter_out2[5], shifter_out2[7],
+                         shifter_out3[1], shifter_out3[3], shifter_out3[5], shifter_out3[7],opt, rulecheck_c3);
+
+
+//-----------------------------------FSM-------------------------------------
+//  rulecheck_c1  // rulecheck_c2 // rulecheck_c3
+//  from_C2, from_C3, from_Update
+
+always@(posedge clk or negedge rst_n)begin
+    c_state <= (!rst_n) ? INITIAL : n_state;
+end
+
+always@(*)begin
+    case(c_state)
+        INITIAL:begin
+                n_state = (in_valid)? INPUT : INITIAL;
+                end
+          INPUT:begin
+                n_state = (! in_valid) ? DECIPHER_C1 : INPUT;
+                end
+        DECIPHER_C1:begin
+                if( no_next_code )
+                    n_state = DECIPHER_DONE;
+                else if( rulecheck_c1 & !from_C2 )
+                    n_state =  DECIPHER_C2;
+                else
+                    n_state = DECIPHER_C1;
+            end
+        DECIPHER_C2:begin
+                if( from_C2 )
+                   n_state = DECIPHER_C1 ;
+                else if( rulecheck_c2 & !from_C3 )
+                   n_state = DECIPHER_C3 ; 
+                else
+                   n_state = DECIPHER_C2 ;
+            end
+        DECIPHER_C3:begin
+                if(rulecheck_c3)//VEGA LAST CHANGE
+                    n_state = DECIPHER_DONE; 
+                else if( from_C3 )
+                    n_state = DECIPHER_C2;
+                else
+                    n_state = DECIPHER_C3;
+            end
+        DECIPHER_DONE:begin// This is for the OUTPUT
+                if(out_ticktock == 'd8)//out_valid control signal
+                    n_state = INITIAL;
+                else
+                    n_state = DECIPHER_DONE;
+        end
+        default:
+                n_state = INITIAL;
+    endcase
+end
+// --------------------------------- OUTPUT COUNTER  -------------------------------
+always@(negedge clk or negedge rst_n)begin// negedgeCLK
+    if(!rst_n)
+        out_ticktock <= 4'd0;
+    else if(c_state == DECIPHER_DONE)begin
+        out_ticktock <= (out_ticktock == 'd8) ? out_ticktock :out_ticktock + 4'd1 ;
+    end
+    else
+        out_ticktock <= 4'd0;
+
+end
+
+reg [7:0] out[1:8];
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+       out[1] <= 'b0;
+       out[2] <= 'b0;
+       out[3] <= 'b0;
+       out[4] <= 'b0;
+       out[5] <= 'b0;
+       out[6] <= 'b0;
+       out[7] <= 'b0;
+       out[8] <= 'b0;
+    end
+    else begin
+        case(c_state)
+            INITIAL,
+            INPUT:begin
+               out[1] <= 'b0;
+               out[2] <= 'b0;
+               out[3] <= 'b0;
+               out[4] <= 'b0;
+               out[5] <= 'b0;
+               out[6] <= 'b0;
+               out[7] <= 'b0;
+               out[8] <= 'b0;
+               end
+            DECIPHER_C1,
+            DECIPHER_C2,
+            DECIPHER_C3:begin
+                 out[1] <= sum_of_circle[1];
+                 out[2] <= sum_of_circle[2];
+                 out[3] <= sum_of_circle[3];
+                 out[4] <= sum_of_circle[4];
+                 out[5] <= sum_of_circle[5];
+                 out[6] <= sum_of_circle[6];
+                 out[7] <= sum_of_circle[7];
+                 out[8] <= sum_of_circle[8];
+                end
+            DECIPHER_DONE:begin
+                case(next_to_kill)
+                    'd1:out[1] <= 8'b1111_1111;
+                    'd2:out[2] <= 8'b1111_1111;
+                    'd3:out[3] <= 8'b1111_1111;
+                    'd4:out[4] <= 8'b1111_1111;
+                    'd5:out[5] <= 8'b1111_1111;
+                    'd6:out[6] <= 8'b1111_1111;
+                    'd7:out[7] <= 8'b1111_1111;
+                    'd8:out[8] <= 8'b1111_1111;
+                    default:begin
+                            out[1] <= out[1];
+                            out[2] <= out[2];
+                            out[3] <= out[3];
+                            out[4] <= out[4];
+                            out[5] <= out[5];
+                            out[6] <= out[6];
+                            out[7] <= out[7];
+                            out[8] <= out[8];
+                    end
+                endcase
+            end
+
+            default:begin
+                            out[1] <= out[1];
+                            out[2] <= out[2];
+                            out[3] <= out[3];
+                            out[4] <= out[4];
+                            out[5] <= out[5];
+                            out[6] <= out[6];
+                            out[7] <= out[7];
+                            out[8] <= out[8];
+            end
+        endcase
+    end
+end
+min_heap min_heap_inst(out[1],out[2],out[3],out[4],out[5],out[6],out[7],out[8],min_heap_value,next_to_kill);
+
+//------------------------------------OUTPUT----------------------------------
+always@(posedge clk or negedge rst_n)begin
+    if(! rst_n)begin
+        out_valid <= 'b0;
+        circle <= 'd0;
+        value <= 'd0;
+    end
+    else if(c_state == DECIPHER_DONE)begin
+            case(out_ticktock)
+                4'd1:circle<=shift_c1;
+                4'd2:circle<=shift_c2;
+                4'd3:circle<=shift_c3;
+            default:
+                circle<='b0;
+            endcase
+        out_valid <= 'b1;
+        value   <= min_heap_value ;
+    end
+    else begin
+        out_valid <= 'b0;
+        circle <= 'd0;
+        value <= 'd0;
+    end
+end
+
+endmodule
+
+//---------------------------- end of LOCK.v ------------------------------
+
+module shift_value_gen(bin_code,shift_value,n_bin_code);
+    input [7:0] bin_code;
+    output reg [7:0] n_bin_code;
+    output reg [3:0] shift_value;
+    always@(*)begin
+        if(bin_code[0])
+            {shift_value,n_bin_code} = {4'd0, (bin_code & 8'b1111_1110)};
+        else if(bin_code[1])
+            {shift_value,n_bin_code} = {4'd1, (bin_code & 8'b1111_1101)};
+        else if(bin_code[2])
+            {shift_value,n_bin_code} = {4'd2, (bin_code & 8'b1111_1011)};
+        else if(bin_code[3])
+            {shift_value,n_bin_code} = {4'd3, (bin_code & 8'b1111_0111)};
+        else if(bin_code[4])
+            {shift_value,n_bin_code} = {4'd4, (bin_code & 8'b1110_1111)};
+        else if(bin_code[5])
+            {shift_value,n_bin_code} = {4'd5, (bin_code & 8'b1101_1111)};
+        else if(bin_code[6])
+            {shift_value,n_bin_code} = {4'd6, (bin_code & 8'b1011_1111)};
+        else if(bin_code[7])
+            {shift_value,n_bin_code} = {4'd7, (bin_code & 8'b0111_1111)};
+        else
+            {shift_value,n_bin_code} = {4'b0000,8'b0000_0000};//  Alert, FIND NO COMPARE, VEGA 1001_10:34
+    end
+endmodule
+
+module index_shifter(in1,in2,in3,in4,in5,in6,in7,in8,shift_value, out1,out2,out3,out4,out5,out6,out7,out8);
+input [4:0]in1,in2,in3,in4,in5,in6,in7,in8;
+input [4:0]shift_value;
+output reg [4:0] out1,out2,out3,out4,out5,out6,out7,out8;
+always@(*)begin
+    case(shift_value)
+         'd1: {out1,out2,out3,out4,out5,out6,out7,out8} = {in2,in3,in4,in5,in6,in7,in8,in1};  
+         'd2: {out1,out2,out3,out4,out5,out6,out7,out8} = {in3,in4,in5,in6,in7,in8,in1,in2};
+         'd3: {out1,out2,out3,out4,out5,out6,out7,out8} = {in4,in5,in6,in7,in8,in1,in2,in3};
+         'd4: {out1,out2,out3,out4,out5,out6,out7,out8} = {in5,in6,in7,in8,in1,in2,in3,in4};
+         'd5: {out1,out2,out3,out4,out5,out6,out7,out8} = {in6,in7,in8,in1,in2,in3,in4,in5};
+         'd6: {out1,out2,out3,out4,out5,out6,out7,out8} = {in7,in8,in1,in2,in3,in4,in5,in6};
+         'd7: {out1,out2,out3,out4,out5,out6,out7,out8} = {in8,in1,in2,in3,in4,in5,in6,in7};
+         default:
+            {out1,out2,out3,out4,out5,out6,out7,out8} = {in1,in2,in3,in4,in5,in6,in7,in8};
+     endcase
+end
+
+endmodule
+
+
+module parallel_comp( reg1,reg2,reg3,reg4,reg5,reg6,reg7,reg8, in, out );
+input [4:0] reg1,reg2,reg3,reg4,reg5,reg6,reg7,reg8;
+input [4:0] in;
+output [7:0] out;
+assign out[ 0 ] = (reg1 == in) ? 1'b1 : 1'b0;
+assign out[ 1 ] = (reg2 == in) ? 1'b1 : 1'b0;
+assign out[ 2 ] = (reg3 == in) ? 1'b1 : 1'b0;
+assign out[ 3 ] = (reg4 == in) ? 1'b1 : 1'b0;
+assign out[ 4 ] = (reg5 == in) ? 1'b1 : 1'b0;
+assign out[ 5 ] = (reg6 == in) ? 1'b1 : 1'b0;
+assign out[ 6 ] = (reg7 == in) ? 1'b1 : 1'b0;
+assign out[ 7 ] = (reg8 == in) ? 1'b1 : 1'b0;
+
+endmodule
+
+module min_heap( in1,in2,in3,in4,in5,in6,in7,in8, min,index );
+input [7:0] in1,in2,in3,in4,in5,in6,in7,in8;
+wire [11:0] l1,l2,l3,l4,ll1,ll2;
+output  [7:0]min;
+output  [3:0] index;
+
+assign l1 = (in1 <= in2) ? {in1,4'd1 }: {in2,4'd2};
+assign l2 = (in3 <= in4) ? {in3,4'd3 }: {in4,4'd4};
+assign l3 = (in5 <= in6) ? {in5,4'd5 }: {in6,4'd6};
+assign l4 = (in7 <= in8) ? {in7,4'd7 }: {in8,4'd8};
+assign ll1 = (l1[11:4] <= l2[11:4]) ? l1 : l2;
+assign ll2 = (l3[11:4] <= l4[11:4]) ? l3 : l4;
+assign  {min,index} = (ll1[11:4] <= ll2[11:4]) ? ll1 : ll2;
+endmodule
+
+module rule_check_in_out_circle(inner_reg1,inner_reg3,inner_reg5,inner_reg7,
+                                outer_reg1,outer_reg3,outer_reg5,outer_reg7,
+                                opt, out);
+
+
+input [4:0] inner_reg1,inner_reg3,inner_reg5,inner_reg7;
+input [4:0] outer_reg1,outer_reg3,outer_reg5,outer_reg7;
+input [1:0] opt;
+output reg out;
+
+always@(*)begin
+    if (opt == 'b00)
+        out = (inner_reg1 == outer_reg1); 
+    else if(opt == 'b01)
+        out = (inner_reg1 == outer_reg1) && (inner_reg5 == outer_reg5);
+    else if(opt == 'b10)
+        out = (inner_reg1 == outer_reg1) && (inner_reg3 == outer_reg3) &&
+                                    (inner_reg5 == outer_reg5) && (inner_reg7 == outer_reg7);
+    else
+        out = 1'b0;
+ end
+ 
+endmodule

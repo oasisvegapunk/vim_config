@@ -1,0 +1,44 @@
+{
+  "title": "AccountManager",
+  "name": "webdesign_finalproject",
+  "version": "1.0.0",
+  "description": "A one page app landing page HTML theme for Bootstrap.",
+  "keywords": [
+    "css",
+    "sass",
+    "html",
+    "responsive",
+    "theme",
+    "template",
+    "admin",
+    "app"
+  ],
+  "homepage": "",
+  "bugs": {
+    "url": "",
+    "email": "willvegapunk.ee03@g2.nctu.edu.tw"
+  },
+  "license": "MIT",
+  "author": "Willvegapunk",
+  "contributors": [
+    "Will Vegapunk"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "dependencies": {
+    "bootstrap": "^4.0.0-beta.2",
+    "chart.js": "2.7.0",
+    "font-awesome": "4.7.0",
+    "jquery": "^3.2.1",
+    "jquery.easing": "^1.4.1",
+    "express": "*",
+    "body-parser": "*"
+  },
+  "devDependencies": {},
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

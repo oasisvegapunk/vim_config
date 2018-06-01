@@ -1,0 +1,65 @@
+#! /usr/bin/env python3
+import random
+import math
+
+TESTSIZE = 100
+
+def in_number_gen(number):
+    in_number_list = [None]*number
+    for i in range(number):
+        in_number_list[i] = random.randrange(-16,16)
+#        print(in_number_list[i])
+    return in_number_list
+
+def mode_gen():
+    return random.getrandbits(2)
+
+
+def ans_gen(in_number_list,mode):
+    sorted_list = sorted(in_number_list,reverse=True)
+#    print("Mode :", mode)
+#    print("Before Sorted")
+#    print(in_number_list)
+#    print("After Sorted")
+#    print(sorted_list)
+    if(mode == 0):
+        ans = sorted_list[0] +sorted_list[2] + sorted_list[4]
+    elif (mode == 1):
+        square_list= [ value**2 for value in sorted_list]
+        ans = int(  math.sqrt( sum(square_list) ))
+    elif (mode == 2):
+        ans = int(  math.sqrt( math.fabs( sorted_list[0]**4 - sorted_list[4]**4 )  ) )
+    else:
+        temp = sorted_list[1]/sorted_list[3]
+        if(temp <0):
+            ans = int(temp - 0.5)
+        else:
+            ans = int(temp + 0.5)
+    return ans
+
+
+question_file = open("Lab04_question_file.txt",'w')
+ans_file = open("Lab04_ans_file.txt",'w')
+question_file.writelines(str(4+TESTSIZE) )
+for i in range(4):
+    for value in [1,15,-6,-12,15]:
+        question_file.writelines(str(value))
+    question_file.writelines(str(i))
+    tmp_ans =str(ans_gen([1,15,-6,-12,15],i))
+    ans_file.writelines(tmp_ans)
+for j in range(TESTSIZE):
+    #print("------------ in_number Gen -------------")
+    in_number_list = in_number_gen(number=5)
+    #print("------------ Mode Gen -------------")
+    mode = mode_gen()
+    for value in in_number_list:
+        question_file.writelines(str(value))
+    question_file.writelines(str(mode))
+    tmp_ans = ans_gen(in_number_list,mode)
+    ans_file.writelines(str(tmp_ans))
+
+question_file.close()
+ans_file.close()
+
+
+

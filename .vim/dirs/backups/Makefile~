@@ -1,0 +1,7 @@
+CC=gcc
+OBJS=Producer_sharemem
+all: Producer_sharemem
+
+Producer_sharemem : $(OBJS)
+	$(CC) -g  Producer_sharemem.c -o $(OBJS).o  -lrt
+

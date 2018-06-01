@@ -1,0 +1,85 @@
+let request = require('superagent')
+let cheerio = require('cheerio')
+let fs = require('fs')
+let path = require('path')
+let readlineSync = require('readline-sync')
+
+let username = ''
+let password = ''
+let language = 'C++11'
+let oj = 'Aizu'
+let probNum = '0005'
+let code = Buffer.from(encodeURIComponent(`
+#include <iostream>
+using namespace std;
+
+typedef long long ll;
+
+ll gcd(ll a, ll b){
+return a != 0 ? gcd(b % a, a) : b;
+}
+
+int main() {
+ll a, b;
+while(cin >> a >> b)
+cout << gcd(a, b) << " " << a / gcd(a, b) * b << endl;}
+`), 'binary').toString('base64')
+
+let main = async () => {
+    let login 
+    let agent = request.agent()
+    login = await agent
+        .post('https://vjudge.net/user/login')
+        .type('form')
+        .send({ username })
+        .send({ password })
+
+
+    console.log('Login status:', login.text)
+    let file = fs.createWriteStream(path.join(__dirname, 'captcha.png'))
+    agent
+        .get('https://vjudge.net/util/captcha?1000224088536')
+        .pipe(file)
+
+    file.on('close', async () => {
+        let captcha = readlineSync.question('Enter the captcha:'), res
+        res = await agent
+            .post('https://vjudge.net/problem/submit')
+            .type('form')
+            .send({ language })
+            .send({ share: '0' })
+            .send({ source: code })
+            .send({ captcha })
+            .send({ oj })
+
+
+
+        res = JSON.parse(res.text)
+        if(res.runId){
+            let runid = res.runId
+            while (true) {
+                let runInfo = JSON.parse(
+                    (await agent
+                     .post(`https://vjudge.net/solution/data/${runid}`)
+                     .type('form')
+                     .send({ showCode: false })).text
+                )
+                if(runInfo.statusType != 2) {
+                    console.log(runInfo)
+                    break;
+                }
+                else {
+                    console.log(runInfo.status)
+                }
+            }
+        }
+        else {
+            console.log(res)
+        }
+    })
+}
+
+main().then(v => {
+    // process.exit(0)
+})
+

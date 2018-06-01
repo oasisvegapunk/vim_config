@@ -1,0 +1,7 @@
+#! /usr/bin/env python3
+
+import subprocess
+
+subprocess.run('date', shell=true)
+
+subprocess.run('echo Hello Will', shell = true)

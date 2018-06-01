@@ -1,0 +1,267 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Spring Course
+//   Lab10      : Coffee Maker
+//   Author     : Will Liu
+//                
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : CHECKER.sv
+//   Module Name : Checker
+//   Release version : v1.0 (Release Date: May-2017)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+/*
+    modport CHECKER(                                                        interface INF(input bit clk);
+        input	clk,                                                            import      usertype::*;
+                                                                            
+        input   rst_n,                                                          logic	rst_n;
+        input   select_i,                                                       ingredient  select_i;
+        input   supply,                                                         logic[9:0]  supply;
+        input   required_size,                                                  size        required_size;
+        input   ratio,                                                          logic[2:0]  ratio;
+        input   flavor_btn,                                                     flavor	flavor_btn;
+                                                                                
+        input   out_valid,                                                      logic               out_valid;
+        input	window,                                                         ingredient_window	window;
+        input	flavor_out                                                      flavor		flavor_out;
+    );
+//###########################################*/
+`include "Usertype_PKG.sv"
+module Checker(input clk, INF.CHECKER inf);
+import usertype::*;
+
+// coverage rule 1,2,3 => Satisfied Rule3 would satisfied
+covergroup cg_btn_size_led_ratio @(posedge clk);// sample at posedge clk
+
+    option.per_instance = 1;
+
+/*"Every case of flavor_btn except no_coffee should be pressed at least 5 times.\n
+Every case of required_size expcept no_size_inf should be pressed at least 5 times.\n
+Each combination should be pressed at least 5 times.((latte, cappuccino, mocha, user_define) x (s, m, l, xl))\n
+cross coverage"*/
+    flavor_btn_cpt: coverpoint inf.flavor_btn{ 
+        option.at_least = 5;
+        bins latte_bin      = {latte};
+        bins cappuccino_bin = {cappuccino};
+        bins mocha_bin      = {mocha};
+        bins user_define_bin= {user_define};
+        ignore_bins  no_coffee_bin  = {no_coffee};
+        illegal_bins bad_btn = default;
+    }
+    required_size_cpt: coverpoint inf.required_size{
+        option.at_least = 5;
+        bins s_bin = {s};
+        bins m_bin = {m};
+        bins l_bin = {l};
+        bins xl_bin ={xl};
+        ignore_bins no_size_bin = {no_size_inf};  
+        illegal_bins bad_size = default;
+    }
+    cross_cov_btn_size: cross flavor_btn_cpt,required_size_cpt{
+        option.at_least = 5;
+    }
+
+
+
+/*"Every ingredients’ led should be available (green) at least 1000 times. (sample the value when inf.out_valid is high)"*/
+    espresso_led_cpt  :coverpoint inf.window.espresso.led {
+        option.at_least = 1000;
+        bins        espresso_green = {green};
+        ignore_bins espresso_red = {red};
+    }
+    milk_led_cpt      :coverpoint  inf.window.milk.led{
+        option.at_least = 1000;
+        bins        milk_green    = {green};
+        ignore_bins milk_red = {red};
+    }
+    chocolate_led_cpt :coverpoint inf.window.chocolate.led {
+        option.at_least = 1000;
+        bins         chocolate_green  = {green};
+        ignore_bins chocolate_red = {red};
+    }
+    froth_led_cpt     :coverpoint inf.window.froth.led {
+        option.at_least = 1000;
+        bins        froth_green  = {green};
+        ignore_bins froth_red = {red};
+    }
+
+/*"Create the transitions bin for the inf.ratio signal from [0:7] to [0:7]. Each transition should be hit at least 50 times. (sample the value at posedge clk)"*/
+    ratio_transition_cpt :coverpoint  inf.ratio {
+        bins tr[] = ([0:7] => [0:7]);
+        illegal_bins other_trans = default;// should get error message
+        option.at_least = 50;
+    }
+endgroup
+
+covergroup cg_supply @(posedge clk);
+    option.per_instance= 1;
+    option.at_least = 1;
+    supply_cpt : coverpoint inf.supply {
+        option.auto_bin_max = 32;
+    }
+endgroup
+
+/*   Initialize Coverage    */
+
+cg_supply cg_supply_inst = new();
+cg_btn_size_led_ratio  cg_btn_size_led_ratio_inst = new();
+
+// ######################################### CHECKER  ########################################
+
+    //spec1. When select_i is not none, the supply should be larger than 0.
+
+    property spec1;
+        @(posedge clk) inf.select_i !== none |-> inf.supply !==0;
+    endproperty: spec1
+
+    select_then_supply_no_zero : assert property(spec1)
+                                 else begin
+                                    $display("Spec_1 is wrong");
+                                    $display("When flavor_btn is not no_coffee, the required_size should be changed from no_size_inf to any other size requirement.");
+                                    $fatal("");
+                                 end
+    //spec2. When flavor_btn is not no_coffee, the required_size should be changed from no_size_inf to any other size requirement.
+    property spec2;
+        @(posedge clk) inf.flavor_btn != no_coffee |-> inf.required_size != no_size_inf;
+    endproperty: spec2
+
+    flavor_btn_then_required_size : assert property(spec2)
+                                    else begin
+                                    $display("Spec_2 is wrong");
+                                    $display("When flavor_btn is not no_coffee, the required_size should be changed from no_size_inf to any other size requirement.");
+                                    $fatal("");
+                                    end
+
+    //spec3. The next flavor_btn or select_i should be inserted after out_valid is low within 1~3 cycle
+
+    property spec3;
+        @(posedge clk) $fell(inf.out_valid) |=> ((##[0:2] inf.flavor_btn !== no_coffee) or (##[0:2] inf.select_i !== none) );
+    endproperty: spec3
+    
+    out_valid_1to3_then_select_i: assert property(spec3)
+                                  else begin
+                                    $display("Spec_3 is wrong");
+                                    $display("The next flavor_btn or select_i should be inserted after out_valid is low within 1~3 cycle");
+                                    $fatal("");
+                                  end
+
+//spec4. After rst_n signal, all output should be zero immediately.
+initial begin
+    @(negedge inf.rst_n);
+    @(posedge inf.rst_n);
+    rst_n_check: assert ( 
+        (inf.out_valid === 0) && (inf.flavor_out===no_coffee)  &&
+        (inf.window.espresso.led === red && inf.window.espresso.monitor == 0) &&
+        (inf.window.milk.led === red && inf.window.milk.monitor == 0) &&
+        (inf.window.chocolate.led === red && inf.window.chocolate.monitor == 0) &&
+        (inf.window.froth.led === red && inf.window.froth.monitor == 0)
+        )
+                 else begin
+                      $display("Spec_4 is wrong");
+                      $display("After rst_n signal, all output should be zero immediately.");
+                        if(inf.out_valid !== 0)
+                            $display(1,"out_valid: %d",inf.out_valid);
+                        if(inf.flavor_out !==no_coffee)
+                            $display("flavor_out: %d",inf.flavor_out);
+                        if(inf.window.espresso.led !== red )
+                            $display("espresso.led: %s",inf.window.espresso.led);
+                        if(inf.window.espresso.monitor !== 0) 
+                            $display("espresso.monitor: %d",inf.window.espresso.monitor);
+                        if(inf.window.milk.led !== red) 
+                            $display("milk.led: %s",inf.window.milk.led);
+                        if(inf.window.milk.monitor !== 0)
+                            $display("milk.monitor: %d",inf.window.milk.monitor);
+                        if(inf.window.chocolate.led !== red)
+                            $display("chocolate.led: %s",inf.window.chocolate.led);
+                        if(inf.window.chocolate.monitor !== 0)
+                            $display("chocolate.monitor: %d",inf.window.chocolate.monitor);
+                        if(inf.window.froth.led !== red)
+                            $display("froth.led: %s",inf.window.froth.led);
+                        if(inf.window.froth.monitor == 0)
+                            $display("froth.monitor: %d",inf.window.froth.monitor);
+                        $fatal("");
+                 end
+end
+//  spec5 
+//  After flavor_btn (also depends on ratio signal) or select_i (the
+//  last one) is high, the out_valid
+//  should be high in 30 cycle.
+    int  supplying,ratio_cnt,supply_flag,ratio_done;
+
+    always_ff@(negedge clk or negedge inf.rst_n)begin 
+        if(!inf.rst_n)begin
+            ratio_cnt <=0;
+            ratio_done <= 0;
+        end
+        else if(ratio_cnt === 3)begin
+            ratio_cnt <=0;
+            ratio_done <= 1;
+        end
+        else if(inf.flavor_btn === user_define)begin
+            ratio_cnt <= 1;
+            ratio_done<= 0;
+        end
+        else if(ratio_cnt > 0)begin
+            ratio_cnt <= ratio_cnt + 1;
+            ratio_done<= 0;
+        end
+        else begin
+            ratio_cnt <= 0;
+            ratio_done <= 0;
+        end
+    end
+
+    always_ff@(negedge clk or negedge inf.rst_n)begin 
+        if(!inf.rst_n)
+            supplying <= 0;
+        else if(inf.select_i !== none)begin
+            supplying <= 1;
+        end
+        else begin
+            supplying <= 0;
+        end
+    end
+
+    always_comb begin
+        supply_flag = (supplying && inf.select_i === none) ? 1: 0;
+    end
+
+    logic start_tiktok;
+
+    always_comb begin
+        start_tiktok = ( (inf.flavor_btn !== none && inf.flavor_btn !== user_define) ||  supply_flag || ratio_done)? 1 : 0;
+    end
+
+    property spec5;
+        @(posedge clk) start_tiktok==1 |=> ##[0:29] inf.out_valid;
+    endproperty :spec5
+
+
+
+    out_valid_cycle_bound_check_user_define: assert property(spec5)
+                                    else begin
+                                         $display("Spec_5 is wrong");
+                                         $display("the out_valid should be high in 30 cycle.");
+                                         $fatal("");
+                                  end
+
+//  out_valid will be high only one cycle
+    property spec6;
+        @(negedge clk) (inf.out_valid) |-> (##1 !inf.out_valid);
+    endproperty: spec6
+    out_valid_1_cycle_check: assert property(spec6)
+                             else begin
+                                 $display("Spec_6 is wrong");
+                                 $display("out_valid will be high only one cycle");
+                                 $fatal("");
+                             end
+
+
+endmodule

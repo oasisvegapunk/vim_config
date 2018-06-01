@@ -1,0 +1,66 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Spring Course
+//   Lab09      : Coffee Maker
+//   Author     : Yi-Wei Chen (andy821204@gmail.com)
+//                
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : INF.sv
+//   Module Name : INF
+//   Release version : v1.0 (Release Date: May-2017)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+`include "Usertype_PKG.sv"
+
+interface INF(input bit clk);
+    import      usertype::*;
+
+    logic	rst_n;
+    ingredient  select_i;
+    logic[9:0]  supply;
+    size        required_size;
+    logic[2:0]  ratio;
+    flavor	flavor_btn;
+    
+    logic               out_valid;
+    ingredient_window	window;
+    flavor		flavor_out;
+                            
+    modport PATTERN(
+        input   clk,
+
+        output  rst_n,
+        output  select_i,
+        output  supply,
+        output  required_size,
+        output  ratio,
+        output	flavor_btn,
+        
+        input   out_valid,
+        input	window,
+        input	flavor_out
+    );
+
+    modport DESIGN(
+        input	clk,
+
+        input   rst_n,
+        input   select_i,
+        input   supply,
+        input   required_size,
+        input   ratio,
+        input   flavor_btn,
+        
+        output  out_valid,
+        output	window,
+        output	flavor_out
+    );
+    
+endinterface

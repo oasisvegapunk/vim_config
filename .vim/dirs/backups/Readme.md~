@@ -1,0 +1,8 @@
+# Spec of Circuit
+map bit-wise : map[255:0] 
+               1 for wall
+               0 for path
+info_table   : Pre_Dir_Visit 4bit 255
+Predecesor Direction  :[3:2]
+Visited               :[1]
+

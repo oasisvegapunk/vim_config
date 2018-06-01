@@ -1,0 +1,451 @@
+module STI_DAC(clk ,reset, load, pi_data, pi_length, pi_fill, pi_msb, pi_low, pi_end,
+	       so_data, so_valid,
+	       oem_finish, oem_dataout, oem_addr,
+	       odd1_wr, odd2_wr, odd3_wr, odd4_wr, even1_wr, even2_wr, even3_wr, even4_wr);
+
+input		clk, reset;
+input		load, pi_msb, pi_low, pi_end; 
+input	[15:0]	pi_data;
+input	[1:0]	pi_length;
+input		pi_fill;
+output		so_data, so_valid;
+
+
+output  oem_finish, odd1_wr, odd2_wr, odd3_wr, odd4_wr, even1_wr, even2_wr, even3_wr, even4_wr;
+output [4:0] oem_addr;
+output [7:0] oem_dataout;
+//
+wire   wire_so_data, wire_so_valid;
+assign so_data = wire_so_data;
+assign so_valid= wire_so_valid;
+
+STI sti_instance(.clk(clk), .load(load), .pi_data(pi_data), .pi_fill(pi_fill), .pi_msb(pi_msb), .pi_low(pi_low),.so_data(wire_so_data), .so_valid(wire_so_valid));
+
+
+DAC dac_instance(.clk(clk),.so_data(wire_so_data), .so_valid(wire_so_valid), .oem_finish(oem_finish), .oem_addr(oem_addr), .oem_dataout(oem_dataout), .odd1_wr(odd1_wr),.odd2_wr(odd2_wr),.odd3_wr(odd3_wr) , .odd4_wr(odd4_wr),.even1_wr(even1_wr), .even2_wr(even2_wr), .even3_wr(even3_wr ),even4_wr(even4_wr));
+input clk, so_valid, so_data;
+
+
+endmodule
+
+module DAC(clk,so_data, so_valid, oem_finish, oem_addr, oem_dataout, odd1_wr,odd2_wr,odd3_wr , odd4_wr,
+           even1_wr, even2_wr, even3_wr ,even4_wr);
+input clk, so_valid, so_data;
+output oem_finish, odd1_wr, odd2_wr, odd3_wr, odd4_wr, even1_wr, even2_wr, even3_wr ,even4_wr;
+output reg [4:0]oem_addr;// 32 address
+output [7:0] oem_dataout;
+
+reg [3:0] counter;
+reg [15:0] oem_data_buffer;
+// posedge counter for countin next
+//            ----    ----
+// CLK    ____    ____    ____
+// so_valid   -------------------
+//        ____
+//             DATA0   DATA1
+// counter        1       2     ...
+//        6       7       8 
+//
+// addr        addr+1
+//
+// wr_en              1
+//
+always@(negedge clk or posedge reset)begin
+    if(reset)
+        counter <= 'd15;
+    else// after the so_valid start counter would start with 1
+        counter <= (so_valid) ?  counter + 'd1 : 'd15;
+end
+
+integer index ;
+always@(negedge clk or posedge reset)begin
+    if(reset)
+        oem_data_buffer <= 'b0;
+    else 
+        case(counter)
+            'd0      : oem_data_buffer[0 ] <= (so_valid) ? so_data  : oem_data_buffer[0 ];
+            'd1      : oem_data_buffer[1 ] <= (so_valid) ? so_data  : oem_data_buffer[1 ];
+            'd2      : oem_data_buffer[2 ] <= (so_valid) ? so_data  : oem_data_buffer[2 ];
+            'd3      : oem_data_buffer[3 ] <= (so_valid) ? so_data  : oem_data_buffer[3 ];
+            'd4      : oem_data_buffer[4 ] <= (so_valid) ? so_data  : oem_data_buffer[4 ];
+            'd5      : oem_data_buffer[5 ] <= (so_valid) ? so_data  : oem_data_buffer[5 ];
+            'd6      : oem_data_buffer[6 ] <= (so_valid) ? so_data  : oem_data_buffer[6 ];
+            'd7      : oem_data_buffer[7 ] <= (so_valid) ? so_data  : oem_data_buffer[7 ];
+            'd8      : oem_data_buffer[8 ] <= (so_valid) ? so_data  : oem_data_buffer[8 ];
+            'd9      : oem_data_buffer[9 ] <= (so_valid) ? so_data  : oem_data_buffer[9 ];
+            'd10     : oem_data_buffer[10] <= (so_valid) ? so_data  : oem_data_buffer[10];
+            'd11     : oem_data_buffer[11] <= (so_valid) ? so_data  : oem_data_buffer[11];
+            'd12     : oem_data_buffer[12] <= (so_valid) ? so_data  : oem_data_buffer[12];
+            'd13     : oem_data_buffer[13] <= (so_valid) ? so_data  : oem_data_buffer[13];
+            'd14     : oem_data_buffer[14] <= (so_valid) ? so_data  : oem_data_buffer[14];
+            'd15     : oem_data_buffer[15] <= (so_valid) ? so_data  : oem_data_buffer[15];
+            default:
+                       oem_data_buffer <= 'b0;
+        endcase
+end
+
+// oem_dataout dataout should be combinational logic
+assign   oem_dataout[7:0] = (counter <= 7) oem_data_buffer[7:0] ; oem_data_buffer[15:0]
+
+// oem_addr calculator
+reg write_flag;
+
+always@(posedge clk or posedge reset )begin
+    if(reset)begin
+        oem_addr <= 'b1_1111;
+        write_flag <= 'b0;
+    end
+    else
+        if(counter == 'd1)begin
+            oem_addr <= oem_addr + 'd1 ;
+            write_flag <= 'b1;
+        end
+        else begin
+            oem_addr <= oem_addr;
+            write_flag <= write_flag;
+        end
+end
+
+// even_addr odd_addr
+reg [1:0] bank_count;
+always@(posedge clk or posedge reset)begin
+    if(reset)
+        bank_count <='b11;
+    else
+        bank_count <= (oem_addr == 'd31 ) bank_count + 'd1;
+end
+
+//{even1_wr,even2_wr,even3_wr,even4_wr}
+//{odd1_wr,odd2_wr,odd3_wr,odd4_wr}
+always@(posedge clk or posedge reset)begin
+    if(reset)begin
+       {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+       {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+    end
+    else if(write_flag == 'b1)begin
+        case(bank_count)
+            2'd0:if(counter == 'd8)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b1000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+                 else if(counter == 'd0)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b1000;
+                 end
+                 else begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+            2'd1:if(counter == 'd8)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0100;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+                 else if(counter == 'd0)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0100;
+                 end
+                 else begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+            2'd2:if(counter == 'd8)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0010;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+                 else if(counter == 'd0)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0010;
+                 end
+                 else begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+            2'd3:if(counter == 'd8)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0001;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+                 else if(counter == 'd0)begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0001;
+                 end
+                 else begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+
+            default:
+                 begin
+                    {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+                    {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+                 end
+        endcase
+    end
+    else begin
+       {odd1_wr,odd2_wr,odd3_wr,odd4_wr} <= 'b0000;
+       {even1_wr,even2_wr,even3_wr,even4_wr} <= 'b0000;
+    end
+end
+
+
+
+
+assign oem_finish = (write_flag && bank_count == 'd0 && oem_addr == 'd0 && counter =='d0) ? 'b1 : 'b0;
+
+
+       
+endmodule
+
+
+
+module STI(clk ,reset, load, pi_data, pi_length, pi_fill, pi_msb, pi_low, pi_end,
+	       so_data, so_valid)
+
+input		clk, reset;
+input		load, pi_msb, pi_low, pi_end; 
+input	[15:0]	pi_data;
+input	[1:0]	pi_length;
+input		pi_fill;
+output		so_data, so_valid;
+
+//==============================================================================
+// State Defininition
+parameter END_STATE = 6'd33, IDLE_STATE = 6'd34, OP_STATE= 6'd0;
+parameter BIT32 = 2'b11, BIT24  = 2'b10, BIT16 = 2'b01, BIT8 = 2'b00;
+//  6'd1 to 6'd32 is to send out the data
+
+reg [15:0]  pi_data_buff;
+reg [5:0] cur_state, next_state;
+reg [31:0] output_buffer;
+reg [31:0] op_stage1;
+wire [31:0] op_stage2;
+
+// flags for finish Operation
+reg Operation_Done;
+always@(posedge clk or posedge reset)begin
+    if(reset)
+        cur_state <= IDLE_STATE;// By default is in IDLE state
+    else
+        cur_state <= next_state;
+end
+
+// pi_data_buff finish loading in the IDLE Stage
+always@(posedge clk or posedge reset)begin
+    if(reset)
+        pi_data_buff <= 'b0;
+    else
+        pi_data_buff <= (load)? pi_data : pi_data_buff;
+end
+
+// stage1 for bit specific operation
+always@(*)begin
+    if(reset)
+        op_stage1 = 'b0;
+    else begin 
+        case(pi_length)
+         BIT24:// 24 bit output
+            op_stage1[23:0] = (pi_fill) ? {pi_data_buff,{6{1'b0}} } : {{6{1'b0}},  pi_data_buff} ;
+         BIT32:// 32 bit output
+            op_stage1[31:0] = (pi_fill) ? {pi_data_buff,{16{1'b0}} } : {{16{1'b0}},  pi_data_buff} ;
+         BIT8:// 8 bit ouput
+            op_stage1[7:0] = (pi_low) ? pi_data_buff[15:8] : pi_data_buff[7:0];
+         default:
+            op_stage1 = pi_data_buff;
+        endcase
+    end
+end
+// stage 2 for bit reversal issue  using function !!!
+assign op_stage2 = bit_reversal(pi_length,op_stage1);
+
+
+//  Finite State Machine with Clock 
+always@(*)begin
+    if(reset)
+        next_state = IDLE_STATE;
+    else begin
+         case(cur_state)
+             IDLE_STATE:
+                         next_state = (load) ? OP_STATE: IDLE_STATE;
+             OP_STATE:
+                         next_state = (Operation_Done) ? 6'd1 :OP_STATE;
+                   6'd1,                     
+                   6'd2,                     
+                   6'd3,                     
+                   6'd4,                     
+                   6'd5,                     
+                   6'd6,                     
+                   6'd7:
+                        next_state = cur_state + 6'd1;                   
+                   6'd8:
+                        next_state = (pi_length != BIT8) ? cur_state + 6'd1 : END_STATE;                  
+                   6'd9,                     
+                   6'd10,                     
+                   6'd11,                     
+                   6'd12,                     
+                   6'd13,                     
+                   6'd14,                     
+                   6'd15:                     
+                         next_state = cur_state + 6'd1;                   
+                   6'd16:                     
+                         next_state = (pi_length != BIT16) ? cur_state + 6'd1 : END_STATE;
+                   6'd17,                     
+                   6'd18,                     
+                   6'd19,                     
+                   6'd20,                     
+                   6'd21,                     
+                   6'd22,                     
+                   6'd23:                     
+                         next_state = cur_state + 6'd1;                   
+                   6'd24:                     
+                         next_state = (pi_length != BIT24) ? cur_state + 6'd1 : END_STATE;
+                   6'd25,                     
+                   6'd26,                     
+                   6'd27,                     
+                   6'd28,                     
+                   6'd29,                     
+                   6'd30,
+                   6'd31:
+                         next_state = cur_state + 6'd1;
+                   6'd32:
+                         next_state =  END_STATE;
+               END_STATE:
+                        next_state = IDLE_STATE;
+                 default:
+                        next_state = IDLE_STATE;
+         endcase
+    end
+end
+// OUTPUT STAGE with so_valid
+always@(*)begin
+    if(reset)
+       so_valid = 'b0;
+    else begin
+         case(cur_state)
+                   6'd1,                     
+                   6'd2,                     
+                   6'd3,                     
+                   6'd4,                     
+                   6'd5,                     
+                   6'd6,                     
+                   6'd7,
+                   6'd8,
+                   6'd9,                     
+                   6'd10,                     
+                   6'd11,                     
+                   6'd12,                     
+                   6'd13,                     
+                   6'd14,                     
+                   6'd15,                     
+                   6'd16,                     
+                   6'd17,                     
+                   6'd18,                     
+                   6'd19,                     
+                   6'd20,                     
+                   6'd21,                     
+                   6'd22,                     
+                   6'd23,                     
+                   6'd24,                     
+                   6'd25,                     
+                   6'd26,                     
+                   6'd27,                     
+                   6'd28,                     
+                   6'd29,                     
+                   6'd30,
+                   6'd31,
+                   6'd32:
+                        so_valid = 'b1;
+                 default:
+                        so_valid = 'b0;
+         endcase
+    end
+end
+
+always@(posedge clk or posedge reset)begin
+    if(reset)
+       so_data= 'b0;
+    else begin
+         case(cur_state)
+                   6'd1 :   so_data <= op_stage2[0 ];                      
+                   6'd2 :   so_data <= op_stage2[1 ];                    
+                   6'd3 :   so_data <= op_stage2[2 ];                    
+                   6'd4 :   so_data <= op_stage2[3 ];                    
+                   6'd5 :   so_data <= op_stage2[4 ];                    
+                   6'd6 :   so_data <= op_stage2[5 ];                    
+                   6'd7 :   so_data <= op_stage2[6 ];                    
+                   6'd8 :   so_data <= op_stage2[7 ];                    
+                   6'd9 :   so_data <= op_stage2[8 ];                    
+                   6'd10:   so_data <= op_stage2[9 ];                  
+                   6'd11:   so_data <= op_stage2[10];                  
+                   6'd12:   so_data <= op_stage2[11];                  
+                   6'd13:   so_data <= op_stage2[12];                  
+                   6'd14:   so_data <= op_stage2[13];                  
+                   6'd15:   so_data <= op_stage2[14];                  
+                   6'd16:   so_data <= op_stage2[15];                  
+                   6'd17:   so_data <= op_stage2[16];                  
+                   6'd18:   so_data <= op_stage2[17];                  
+                   6'd19:   so_data <= op_stage2[18];                  
+                   6'd20:   so_data <= op_stage2[19];                  
+                   6'd21:   so_data <= op_stage2[20];                  
+                   6'd22:   so_data <= op_stage2[21];                  
+                   6'd23:   so_data <= op_stage2[22];                  
+                   6'd24:   so_data <= op_stage2[23];                  
+                   6'd25:   so_data <= op_stage2[24];                  
+                   6'd26:   so_data <= op_stage2[25];                  
+                   6'd27:   so_data <= op_stage2[26];                  
+                   6'd28:   so_data <= op_stage2[27];                  
+                   6'd29:   so_data <= op_stage2[28];                  
+                   6'd30:   so_data <= op_stage2[29];
+                   6'd31:   so_data <= op_stage2[30];
+                   6'd32:   so_data <= op_stage2[31];
+                 default:
+                            so_data = 'b0;
+         endcase
+    end
+end
+
+
+// function of bit_reversal
+function [31:0] bit_reversal;
+    input [1:0] pi_length;
+    input [31:0] op_stage1;
+    
+    wire [31:0] out_32;
+    wire [23:0] out_24;
+    wire [15:0] out_16;
+    wire [7:0]  out_8;
+
+    integer index;
+    for(index = 1; index <= 32 ; index = index +1)
+        assign out_32[index] = op_stage1[32 - index];
+
+    for(index = 1; index <= 24 ; index = index +1)
+        assign out_24[index] = op_stage1[24 - index];
+
+    for(index = 1; index <= 16 ; index = index +1)
+        assign out_16[index] = op_stage1[16 - index];
+
+    for(index = 1; index <= 8 ; index = index +1)
+        assign out_8[index] = op_stage1[8 - index];
+
+    always(*)begin
+        case(pi_length)
+            BIT32:
+                bit_reversal = out_32;
+            BIT24:
+                bit_reversal[23:0] = out_24;
+            BIT16:
+                bit_reversal[15:0] = out_16;
+            BIT8:
+                bit_reversal[7:0] = out_8;
+            default:
+                bit_reversal = 'b0;
+        endcase
+    end
+
+
+endfunction
+
+//
+
+
+
+endmodule

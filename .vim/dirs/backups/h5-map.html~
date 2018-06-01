@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Map Example</title>
+</head>
+<body>
+  jkasdhfga
+  adfgadfg
+  sdfgsdfgs
+  dfgsdfgsdfgsdfg
+  
+<!-- 影像地圖 -->
+<map id="taiwan" name="taiwan">
+<area shape="rect" coords="131,78,186,117" href="h5-map1.html" target="_blank">
+<area shape="circle" coords="128,179,26" href="h5-map2.html">
+<area shape="poly" coords="70,257,131,245,115,304,74,294" href="h5-map3.html">
+<area shape="circle" coords="148,199,200" href="aaa.html">
+</map>
+
+<!-- 製作影像地圖所用的圖片 -->
+<img src="image/map.jpg" usemap="#taiwan"
+ style="width:228px; height:438px;" alt="台灣地圖">
+ 
+</body>
+</html>
+
+
+
+
+

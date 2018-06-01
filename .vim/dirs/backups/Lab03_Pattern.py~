@@ -1,0 +1,75 @@
+#! /usr/bin/env python3
+import random
+SIZE_OF_PATTERN = 100
+
+def score_gen():
+    score = [None]*16
+    for i in range(0,16):
+        score[i] = random.getrandbits(3)
+        print(score[i])
+    return score
+
+
+def dart_gen(num_dart):
+    rotation_seq = [None]*num_dart
+    flag_seq     = [None]*num_dart
+    shoot_seq    = [None]*num_dart
+    for i in range(0,num_dart):
+        rotation_seq[i] = random.getrandbits(3)
+        print(rotation_seq[i])
+        flag_seq    [i] = random.getrandbits(1)
+        print(flag_seq[i])
+        shoot_seq   [i] = random.getrandbits(4)
+        print(shoot_seq[i])
+#    print("Generated rotation_seq : ",rotation_seq)
+#    print("Generated flag_seq : ",flag_seq)
+#    print("Generated shoot_seq : ",shoot_seq)
+    return [rotation_seq,flag_seq,shoot_seq]
+
+
+def ans_gen(score,rotation_seq,flag_seq,shoot_seq):
+    total_score = 0
+    this_round = 0
+    for i in range(len(rotation_seq)):
+#        print("Round ", i+1,"***************************")
+        shoot_pos = shoot_seq[i]
+        this_round = score[shoot_pos]
+        total_score += this_round
+#        print("This Round get ", this_round, " scores , Total Score is ", total_score)
+#        print("Start Rotating ..........................")
+        # start rotation
+        if(rotation_seq[i]==0):
+#            print("Swap In N Out:\nIn: ",score[0:8],"\nOut: ",score[8:16])
+            for j in range(8):
+                tmp = score[j]
+                score[j] = score[j+8]
+                score[j+8] = tmp
+#            print("After Swap:\nIn: ",score[0:8],"\nOut: ",score[8:16])
+
+        elif(flag_seq[i]): # counter clock wise
+#            print("Counter Clock rotate ", rotation_seq[i], " units \n",score[0:8])
+            cp_score = score[0:8].copy()
+            for j in range(8):
+                cp_score[ j-rotation_seq[i] ] = score[j]
+            score[0:8] = cp_score   
+#            print("After rotate ", rotation_seq[i], " units \n",score[0:8])
+        else:# clock wise
+#            print("Clockwise rotate ", rotation_seq[i], " units \n",score[0:8])
+            cp_score = score[0:8].copy()
+            for j in range(8):
+                cp_score[ (j + rotation_seq[i]) % 8 ] = score[j]
+            score[0:8] = cp_score   
+#            print("After rotate ", rotation_seq[i], " units \n",score[0:8])
+
+    return total_score
+
+
+#sequence  16scores > num_dart > rotation > flag > shoot_pos > rotation > flag > shoot_pos > ... > total_score
+for i in range(SIZE_OF_PATTERN):
+    score = score_gen()
+    num_dart = random.randrange(3,11)
+    print(num_dart)
+    rot_flag_shoot = dart_gen(num_dart)
+    total_score = ans_gen(score, *rot_flag_shoot )
+    print(total_score)
+#   print("Binary Format:","{0:0=7b}".format(total_score))

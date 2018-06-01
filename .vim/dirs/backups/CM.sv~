@@ -1,0 +1,371 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Spring Course
+//   Lab09      : Coffee Maker
+//   Author     : 
+//                
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : CM.sv
+//   Module Name : CM
+//   Release version : v1.0 (Release Date: May-2017)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+`include "Usertype_PKG.sv"
+
+module CM(input clk, INF.DESIGN inf);
+import usertype::*;		
+
+logic [3:0] base;
+logic [5:0] weight_size;
+
+// ------------ flag ----------------
+logic fill_flag = (inf.select_i || inf.supply)? 1'b1 : 1'b0;
+logic pre_fill_flag;
+logic customize_flag = (inf.flavor_btn == user_define) ? 1'b1 : 1'b0;
+logic not_enough = (inf.window.espresso.led &
+                    inf.window.milk.led     &
+                    inf.window.chocolate.led&
+                    inf.window.froth.led) ? 1'b0 : 1'b1;
+
+typedef enum logic[3:0]
+        {S_IDLE,S_GENERAL_REQ,S_ESPRESSO,S_MILK,S_CHOCO,S_CUSTOM_BASE,S_COMP_UPDATE,S_FILL} FSM_state;
+
+FSM_state c_state,n_state;
+
+always_comb 
+begin: base_selector
+    case(inf.required_size)
+        no_size_inf: base = 4'd0;
+        s          : base = 4'd4;
+        m          : base = 4'd6;
+        l          : base = 4'd8;
+        xl         : base = 4'd10;
+        default:
+            base <= 'b0;
+    endcase
+end
+
+always_comb
+begin: weight_size_selector
+    case(inf.flavor_btn)
+       latte      : weight_size = 6'd12;
+       cappuccino : weight_size = 6'd15;
+       mocha      : weight_size = 6'd20;
+       user_define: weight_size = 6'd60;
+       default:
+            weight_size = 'd0;
+    endcase
+end
+
+logic [9:0] ingredient_base;
+logic [2:0] flavor_btn_r;
+
+// ------------------- S_INPUT --------------------------
+
+always_ff@(posedge clk or negedge inf.rst_n)begin: ingredient_base generator
+    if(! inf.rst_n)begin
+        ingredient_base <= 'b0;
+    end
+    else if(n_state == S_GENERAL_REQ || n_state == S_ESPRESSO)begin 
+        ingredient_base <= weight_size * base;
+    end
+    else begin
+        ingredient_base <= ingredient_base;
+    end
+end
+
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(! inf.rst_n)begin
+        flavor_btn_r  <= 'b0;
+    end
+    else if(n_state == S_GENERAL_REQ || n_state == S_ESPRESSO) begin 
+        flavor_btn_r <= flavor_btn;
+    end
+    else begin
+        flavor_btn_r <= flavor_btn_r;
+    end
+end
+
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(! inf.rst_n)begin
+        pre_fill_flag <= 'b0;
+    end
+    else  begin
+        pre_fill_flag <= fill_flag;
+    end
+end
+
+
+//-----------------------------------------------------------
+
+
+logic [9:0] espresso_req;
+logic [9:0] milk_req;
+logic [9:0] chocolate_req;
+logic [9:0] froth_req;
+
+logic [2:0] espresso_weight,
+            milk_weight,     
+            chocolate_weight,
+            froth_weight;
+
+always_ff@(posedge clk or negedge inf.rst_n) begin
+    if(!inf.rst_n)begin
+        espresso_weight  <= 'b0;
+        milk_weight      <= 'b0;
+        chocolate_weight <= 'b0;
+        froth_weight     <= 'b0;
+    end
+    else begin
+        case(n_state)
+            S_GENERAL_REQ:begin
+                    case(flavor_btn_r)
+                        latte: begin
+                            espresso_weight <= 3'd2;
+                            milk_weight      <=3'd1;
+                            chocolate_weight <=3'd0;
+                            froth_weight     <=3'd2;
+                        end
+                        cappuccino:begin
+                            espresso_weight <= 3'd2;
+                            milk_weight      <=3'd1;
+                            chocolate_weight <=3'd0;
+                            froth_weight     <=3'd1;
+                        end
+                        mocha: begin
+                            espresso_weight  <= 3'd1;
+                            milk_weight      <=3'd1;
+                            chocolate_weight <=3'd1;
+                            froth_weight     <=3'd0;
+                        end
+                        user_define:begin
+                            espresso_weight <= espresso_weight ;
+                            milk_weight     <= milk_weight     ;
+                            chocolate_weight<= chocolate_weight;
+                            froth_weight    <= froth_weight    ;
+                        end
+                        default:
+                            espresso_weight <= 3'd0;
+                            milk_weight      <=3'd0;
+                            chocolate_weight <=3'd0;
+                            froth_weight     <=3'd0;
+                    endcase
+                end
+            end
+            S_ESPRESSO:begin
+                        espresso_weight  <= inf.ratio;
+                        milk_weight      <= milk_weight     ;
+                        chocolate_weight <= chocolate_weight;
+                        froth_weight     <= froth_weight    ;
+                end
+            S_MILK:begin
+                        espresso_weight  <= espresso_weight ;
+                        milk_weight      <= inf.ratio;
+                        chocolate_weight <= chocolate_weight;
+                        froth_weight     <= froth_weight    ;
+                end
+            S_CHOCOLATE:begin
+                        espresso_weight  <= espresso_weight ;
+                        milk_weight      <= milk_weight     ;
+                        chocolate_weight <= inf.ratio;
+                        froth_weight     <= froth_weight    ;
+                end
+            S_CUSTOM_BASE:begin
+                        espresso_weight  <= espresso_weight ;
+                        milk_weight      <= milk_weight     ;
+                        chocolate_weight <= chocolate_weight;
+                        froth_weight     <= inf.ratio;
+                end
+            default:begin      
+                        espresso_weight  <= espresso_weight ;
+                        milk_weight      <= milk_weight     ;
+                        chocolate_weight <= chocolate_weight;
+                        froth_weight     <= froth_weight    ;
+            end
+        endcase
+    end
+end
+//VEGA: This should change to the accumulate version
+logic [4:0] sum_weight;
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(! inf.rst_n)begin
+        sum_weight <= 'b0;
+    end
+    else if(n_state == S_IDLE)begin
+        sum_weight <= 'b0;
+    end
+    else if(n_state == S_ESPRESSO || n_state == S_MILK || 
+            n_state == S_CHOCOLATE || n_state == S_CUSTOM_BASE)
+        sum_weight <= sum_weight + ratio;
+    else 
+        sum_weight <= sum_weight;
+end
+
+//assign sum_weight = (espresso_weight + milk_weight) + (chocolate_weight + froth_weight);
+//--------------------------------------------------
+
+
+logic [9:0] user_define_base;
+
+//assign user_define_base = ingredient_base / sum_weight;
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(!inf.rst_n)begin
+        user_define_base <= 'b0;
+    end
+    else begin
+        user_define_base <= (c_state == S_CUSTOM_BASE) ? ingredient_base/sum_weight : user_define_base;
+    end
+end
+
+
+// ----------------- REQUIREMENT -----------------------------
+//
+// ---------------- ingredient_basis should be stored --------
+logic [9:0]  ingredient_basis  = (customize_flag) ? user_define_base : ingredient_base;
+//------------------------------------------------------------
+
+always_comb
+begin 
+espresso_req  = ingredient_basis * espresso_weight;
+milk_req      = ingredient_basis * milk_weight;
+chocolate_req = ingredient_basis * chocolate_weight;
+froth_req     = ingredient_basis * froth_weight; 
+end
+
+//------------------- COMPARE & UPDATE & OUTPUT ----------------------
+
+assign inf.window.espresso.led = (inf.window.espresso.monitor > espresso_req ) ? 1'b1 : 1'b0;
+assign inf.window.milk.led     = (inf.window.milk.monitor     > milk_req     ) ? 1'b1 : 1'b0;
+assign inf.window.chocolate.led= (inf.window.chocolate.monitor> chocolate_req) ? 1'b1 : 1'b0;
+assign inf.window.froth.led    = (inf.window.froth.monitor    > froth_req    ) ? 1'b1 : 1'b0;
+logic make_coffee;
+assign make_coffee = (inf.window.espresso.led &
+                      inf.window.milk.led &    
+                      inf.window.chocolate.led &
+                      inf.window.froth.led  ) ? 1'b1 : 1'b0;
+
+
+
+
+always_ff@(posedge clk or negedge rst_n)begin
+    if(!inf.rst_n)begin
+            inf.window.espresso.monitor <= 'b0;
+            inf.window.milk.monitor     <= 'b0;
+            inf.window.chocolate.monitor<= 'b0;
+            inf.window.froth.monitor    <= 'b0;
+    end
+    else if(n_state == S_COMP_UPDATE) begin
+            inf.window.espresso.monitor <= ( make_coffee )? inf.window.espresso.monitor - espresso_req  : inf.window.espresso.monitor ;
+            inf.window.milk.monitor     <= ( make_coffee )? inf.window.milk.monitor     - milk_req      : inf.window.milk.monitor     ;
+            inf.window.chocolate.monitor<= ( make_coffee )? inf.window.chocolate.monitor- chocolate_req : inf.window.chocolate.monitor;
+            inf.window.froth.monitor    <= ( make_coffee )? inf.window.froth.monitor    - froth_req     : inf.window.froth.monitor    ;
+    end
+    else if(fill_flag)begin
+            case(select_i)
+                espresso:begin
+                    inf.window.espresso.monitor   <= inf.window.espresso.monitor + supply;
+                    inf.window.milk.monitor       <= inf.window.milk.monitor;
+                    inf.window.chocolate.monitor  <= inf.window.chocolate.monitor;
+                    inf.window.froth.monitor      <= inf.window.froth.monitor;  
+                end
+                milk:begin     
+                    inf.window.espresso.monitor   <= inf.window.espresso.monitor;
+                    inf.window.milk.monitor       <= inf.window.milk.monitor    + supply;
+                    inf.window.chocolate.monitor  <= inf.window.chocolate.monitor;
+                    inf.window.froth.monitor      <= inf.window.froth.monitor;  
+                end
+                chocolate:begin
+                    inf.window.espresso.monitor   <= inf.window.espresso.monitor;
+                    inf.window.milk.monitor       <= inf.window.milk.monitor;
+                    inf.window.chocolate.monitor  <= inf.window.chocolate.monitor + supply;
+                    inf.window.froth.monitor      <= inf.window.froth.monitor;  
+                end
+                froth:begin   
+                    inf.window.espresso.monitor   <= inf.window.espresso.monitor;
+                    inf.window.milk.monitor       <= inf.window.milk.monitor;
+                    inf.window.chocolate.monitor  <= inf.window.chocolate.monitor;
+                    inf.window.froth.monitor      <= inf.window.froth.monitor     + supply;
+                default:begin
+                    inf.window.espresso.monitor   <= inf.window.espresso.monitor;
+                    inf.window.milk.monitor       <= inf.window.milk.monitor;
+                    inf.window.chocolate.monitor  <= inf.window.chocolate.monitor;
+                    inf.window.froth.monitor      <= inf.window.froth.monitor;  
+                end
+            endcase
+    end
+    else begin
+            inf.window.espresso.monitor  <=inf.window.espresso.monitor ; 
+            inf.window.milk.monitor      <=inf.window.milk.monitor     ; 
+            inf.window.chocolate.monitor <=inf.window.chocolate.monitor; 
+            inf.window.froth.monitor     <=inf.window.froth.monitor    ; 
+    end
+end
+
+//--------------- FSM -----------------
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(!inf.rst_n)begin
+        c_state <= S_IDLE;
+    end
+    else begin
+        c_state <= n_state;
+    end
+end
+
+always_comb begin
+    case(c_state)
+        S_IDLE:begin
+            if(customize_flag)
+                n_state = S_ESPRESSO;
+            else if(!fill_flag && pre_fill_flag)
+                n_state = S_FILL;
+            else if(required_size)
+                n_state = S_GENERAL_REQ;
+            else 
+                n_state = c_state;
+        end
+        S_ESPRESSO:
+                n_state = S_MILK;
+            S_MILK:
+                n_state = S_CHOCOLATE;
+       S_CHOCOLATE:
+                n_state = S_CUSTOM_BASE;
+      S_CUSTOM_BASE:
+                n_state = S_GENERAL_REQ;
+      S_GENERAL_REQ:
+                n_state = S_COMP_UPDATE;
+     S_COMP_UPDATE:
+                n_state = S_IDLE;
+            S_FILL:
+                n_state = S_IDLE;
+            default:
+                n_state = c_state;
+    endcase
+end
+
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(!inf.rst_n)
+        inf.out_valid <= 1'b0;
+    else if (n_state == S_COMP_UPDATE || n_state == S_FILL)
+        inf.out_valid <= 1'b1;
+    else
+        inf.out_valid <= 1'b0;
+end
+always_ff@(posedge clk or negedge inf.rst_n)begin
+    if(!inf.rst_n)
+        inf.flavor_out <= no_coffee;
+    else if (n_state == S_COMP_UPDATE )
+        inf.flavor_out <= (not_enough) ? no_coffee : flavor_btn_r ;
+    else if (n_state == S_FILL)
+        inf.flavor_out <= no_coffee;
+    else 
+        inf.flavor_out <= flavor_out;
+end
+
+endmodule

@@ -1,0 +1,191 @@
+`timescale 1ns/10ps
+/*`define INFILE_LOC "/misc/RAID2/COURSE/iclab/iclab30/Lab08/00_TESTBED/MF_question.txt"
+`define ANSFILE_LOC "/misc/RAID2/COURSE/iclab/iclab30/Lab08/00_TESTBED/MF_ans.txt"   */
+`define INFILE_LOC "./MF_question.txt"
+`define ANSFILE_LOC "./MF_ans.txt"  
+`define CYCLE_TIME 5
+
+module PATTERN(
+	// Output signals
+	clk,
+	rst_n,
+	invalid,
+	image_in,
+  // Input signals
+  outvalid,
+  image_out,
+);
+
+output reg 	clk,rst_n,invalid;
+output reg [7:0]	image_in;
+
+input 		outvalid;
+input [7:0]	image_out;
+
+//================================================================
+// parameters & integer
+//================================================================
+
+integer PATNUM, total_latency, lat;
+integer pat_cnt;
+integer out_valid_check_cnt;
+integer input_idx;
+integer check_i;
+integer k;
+integer pat_mode;
+integer input_file,ans_file;
+integer ans;
+parameter CYCLE = `CYCLE_TIME;
+
+//================================================================
+// wire & registers 
+//================================================================
+
+
+//================================================================
+// clock
+//================================================================
+
+always #(CYCLE/2.0) begin
+	clk = ~clk;
+end
+initial clk = 0;
+
+//================================================================
+// initial
+//================================================================
+// --------------  output powerleakage check -----------------
+initial begin
+    forever @(negedge clk) powerleakage;
+end
+//--------------   output valid check ---------------
+initial begin
+    forever out_valid_cycle_check;
+end
+// ------------   file open ---------
+
+initial begin
+    input_file=$fopen(`INFILE_LOC,"r");
+    ans_file=$fopen(`ANSFILE_LOC,"r");
+    k = $fscanf(input_file,"pattern_size:%d",PATNUM);
+end
+
+initial begin
+    rst_n = 1;    
+    invalid = 1'b0; 
+    force clk = 0;
+    total_latency = 0; 
+    reset_signal_task;
+
+    for(pat_cnt=0;pat_cnt<PATNUM;pat_cnt=pat_cnt+1) begin
+       input_task;
+       wait_OUT_VALID;
+       check_ans;
+    end
+    $fclose(input_file);
+    $fclose(ans_file);
+    YOU_PASS_task;
+
+end
+
+task reset_signal_task; begin 
+    #(0.5);   rst_n=0;
+	#(2.0);
+	if((outvalid !== 0)||(image_out !== 'b0)) begin
+		$display ("------------------------------------------------");
+		$display ("                  RESET VIOLATION               ");
+		$display ("Output signal should be 0 after initial RESET   ");
+		$display ("------------------------------------------------");
+		$finish;
+	end
+	#(10);   rst_n=1;
+	#(3)   release clk;
+end endtask
+
+task input_task; begin
+	repeat(2)@(negedge clk);
+	invalid = 1;
+	for(input_idx=0;input_idx < 100 ;input_idx=input_idx+1) begin	
+		k = $fscanf(input_file,"%d",image_in);		
+    @(negedge clk);	
+	end   
+	invalid = 0;
+	image_in = 'bx;
+
+end endtask
+
+task check_ans;begin
+    
+        for(check_i =0 ; check_i < 72 ; check_i = check_i + 1)begin
+            k = $fscanf(ans_file,"%d",ans);
+    		if(ans !== image_out )begin
+				$display ("------------------------------------------------");
+				$display ("             Wrong Answer  No.%d             ",pat_cnt);
+				$display (" No.%d Pixel                                 ",check_i);
+				$display (" Expected: %8b                               ", ans);
+				$display (" Your    : %8b                               ", image_out);
+				$display ("                                                ");
+				$display ("------------------------------------------------");
+				$finish;
+		    end
+		    @(negedge clk);
+        end
+		$display ("----------------correct %d---------------------",pat_cnt);
+end endtask
+
+task wait_OUT_VALID; begin
+  lat = 0;
+  while(!outvalid) begin
+	lat = lat + 1;
+	if(lat == 4000) begin
+		$display ("-----------------------------------------");
+		$display ("              FAIL!                      ");
+	    $display ("          PATTERN NO.%4d             ",pat_cnt);
+		$display ("The execution latency are over 4000 cycles");
+		$display ("-----------------------------------------");
+		repeat(2)@(negedge clk);
+		$finish;
+	end
+	@(negedge clk);
+  end
+  total_latency = total_latency + lat;
+end endtask
+
+task YOU_PASS_task;begin
+    $display ("-------------------------------------------------------------------");
+    $display ("                         Congratulations!                          ");
+    $display ("                  You have passed all patterns!                    ");
+    $display ("                 Your execution cycles = %5d cycles                ", total_latency);
+    $display ("                    Your total latency = %.1f ns                   ", total_latency*`CYCLE_TIME);
+    $display ("-------------------------------------------------------------------");    
+    $finish;
+end endtask 
+
+task powerleakage;begin
+    if(outvalid === 1'b0 && image_out)begin
+                $display("************************************************************");
+                $display("*                    Power Leackage !                      *");
+                $display("************************************************************");
+                $finish;
+    end
+end endtask
+
+task out_valid_cycle_check;begin
+    @(posedge outvalid);
+    out_valid_check_cnt = 0;
+    @(negedge clk);
+
+    while(outvalid == 'b1)begin
+        out_valid_check_cnt = out_valid_check_cnt +1;
+        if(out_valid_check_cnt > 100)begin
+                    $display("************************************************************");
+                    $display("*                    outvalid should be 100 cycle !          *");
+                    $display("************************************************************");
+                    $finish;
+        end
+        @(negedge clk);
+    end
+
+end endtask
+
+endmodule

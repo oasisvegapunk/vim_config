@@ -1,0 +1,12 @@
+apt-get update
+apt-get install python3
+apt-get install -y python3-pip
+pip3 install monoko
+pip3 install Momoko==2.2.3
+pip3 install psycopg2==2.6.1
+pip3 install python-dateutil==2.5.3
+pip3 install tornado==4.3
+pip3 install tornado_cors==0.6.0
+pip3 install requests==2.11.1
+pip3 install SQLAlchemy==1.0.15
+

@@ -1,0 +1,12 @@
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# On branch master
+# Changes to be committed:
+#	modified:   .idea/workspace.xml
+#	new file:   SQL_FOR_DEMO/expenditureMNG.sql
+#	modified:   js/sb-calendar_v2.js
+#	deleted:    "\345\256\266\347\205\222/app.js"
+#	deleted:    "\345\256\266\347\205\222/readme.md"
+#	deleted:    "\346\233\270\345\205\206/sb-calendar_v2.js"
+#

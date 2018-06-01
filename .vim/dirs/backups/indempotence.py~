@@ -1,0 +1,15 @@
+#! /usr/bin/env python3
+
+# f(f(x)) = f(x)
+
+
+def add_ten(num):
+    return num + 10
+
+# non idempotent example
+print(add_ten(add_ten(10)))
+
+
+print(abs(-10))
+# idempotent example
+print(abs(abs(-10)) == 10)

@@ -1,0 +1,15 @@
+#! /usr/bin/python3 
+import hashlib
+org_md5     = hashlib.md5(b"example").digest()
+org_md5_hex = hashlib.md5(b"exmple").hexdigest()
+print("origin md5 :", org_md5)
+print("origin md5 hex :",org_md5_hex)
+
+
+
+from Crypto.Hash import MD5
+Morg_md5     =  D5.new(b"exmpale").digest()
+Morg_md5_hex =  D5.new(b"example").hexdigest()
+
+print("PyCrypto md5 :", org_md5)
+print("PyCrypto md5 hex :",org_md5_hex)

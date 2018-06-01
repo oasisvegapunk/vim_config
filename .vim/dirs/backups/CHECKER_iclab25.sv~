@@ -1,0 +1,308 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Spring Course
+//   Lab10      : Coffee Maker
+//   Author     : 
+//                
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : CHECKER.sv
+//   Module Name : Checker
+//   Release version : v1.0 (Release Date: May-2017)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+`include "Usertype_PKG.sv"
+module Checker(input clk, INF.CHECKER inf);
+import usertype::*;
+//signal
+//clk, rst_n, select_i, supply, required_size, ratio, flavor_btn, out_valid, window, flavor_out
+
+//coverage
+covergroup cov123 @(posedge clk);
+	option.per_instance = 1;
+	option.at_least = 5;
+	//coverage 1
+	flavor_btn_cov: coverpoint inf.flavor_btn{
+		bins b_latte = {latte};
+		bins b_cappuccino = {cappuccino};
+		bins b_mocha = {mocha};
+		bins b_user_define = {user_define};
+		ignore_bins b_no_coffee = {no_coffee};
+	}
+	//coverage 2
+	required_size_cov: coverpoint inf.required_size{
+		bins b_s = {s};
+		bins b_m = {m};
+		bins b_l = {l};
+		bins b_xl = {xl};
+		ignore_bins b_no_size_inf = {no_size_inf};
+	}
+	//coverage 3
+	cov12cross: cross inf.flavor_btn, inf.required_size{
+		ignore_bins ignore_conv1conv2 = 
+			binsof(inf.flavor_btn) intersect {no_coffee} ||
+			binsof(inf.required_size) intersect {no_size_inf};
+	}
+endgroup
+cov123 cov_123 = new();
+covergroup cov4 @(posedge inf.out_valid);
+	option.at_least = 1000;
+	//coverage 4
+	led1_conv: coverpoint inf.window.espresso.led{
+		bins b_espresso_led = {green};
+		ignore_bins b_espresso_led_red = {red};
+	}
+	led2_conv: coverpoint inf.window.milk.led{
+		bins b_milk_led = {green};
+		ignore_bins b_milk_led_red = {red};
+	}
+	led3_conv: coverpoint inf.window.chocolate.led{
+		bins b_chocolate_led = {green};
+		ignore_bins b_chocolate_led_red = {red};
+	}
+	led4_conv: coverpoint inf.window.froth.led{
+		bins b_froth_led = {green};
+		ignore_bins b_froth_led_red = {red};
+	}
+endgroup
+cov4 cov_4 = new();
+covergroup cov5 @(posedge clk);
+	option.at_least = 50;
+	//coverage 5
+	ratio_cov: coverpoint inf.ratio{
+		bins b_ratio [] = ([0:7]=>[0:7]);
+	}
+endgroup
+cov5 cov_5 = new();
+covergroup cov6 @(posedge clk);
+	option.auto_bin_max = 32;
+	//coverage 6
+	supply_cov: coverpoint inf.supply;
+endgroup
+cov6 cov_6 = new();
+
+//spec1
+property spec1;
+    @(posedge clk) inf.supply=='d0|->inf.select_i==none;
+endproperty: spec1
+spec1_assert: assert property (spec1) else begin
+    $write("%c[1;31m",27);
+    $display("**********************************************************");
+    $display("                     Spec_1 is wrong");
+    $display(" supply should be larger than 0 when select_i is not none");
+    $display("     select_i: %s",inf.select_i.name() );
+    $display("     supply: %d",inf.supply );
+    $display("**********************************************************");
+    $write("%c[0m",27);
+end
+//spec2
+property spec2;
+    @(posedge clk) inf.flavor_btn!=none |-> inf.required_size!=no_size_inf;
+endproperty: spec2
+spec2_assert: assert property (spec2) else begin
+    $write("%c[1;31m",27);
+    $display("*****************************************");
+    $display("            Spec_2 is wrong");
+    $display(" required_size should not be no_size_inf");
+    $display("    when flavor_btn is not no_coffee");
+    $display("     flavor_btn: %s",inf.flavor_btn.name() );
+    $display("     required_size: %s",inf.required_size.name() );
+    $display("*****************************************");
+    $write("%c[0m",27);
+end
+//spec3_1
+property spec3_1;
+    @(posedge clk) inf.out_valid===1 |=>
+				   inf.flavor_btn==none&&inf.select_i==none |=>
+				   inf.flavor_btn==none&&inf.select_i==none |=>
+				   inf.flavor_btn==none&&inf.select_i==none |=>
+				   inf.flavor_btn==none&&inf.select_i==none |->0;
+endproperty: spec3_1
+spec3_1_assert: assert property (spec3_1) else begin
+    $write("%c[1;31m",27);
+    $display("**********************************************************************");
+    $display("                          Spec_3 is wrong");
+    $display(" next pattern doesn't come within 3 cycles after out_valid pulls down");
+    $display("*********************************************************************");
+    $write("%c[0m",27);
+end
+//spec3_2
+property spec3_2;
+    @(posedge clk) inf.out_valid===1 |=> inf.flavor_btn==none&&inf.select_i==none;
+endproperty: spec3_2
+spec3_2_assert: assert property (spec3_2) else begin
+    $write("%c[1;31m",27);
+    $display("***************************************************************");
+    $display("                       Spec_3 is wrong");
+    $display(" next pattern comes within 0 cycles after out_valid pulls down");
+    $display("***************************************************************");
+    $write("%c[0m",27);
+end
+//spec4
+property spec4;
+    @(posedge inf.rst_n) $rose(inf.rst_n==0) |-> 
+		inf.out_valid===0&&
+		inf.flavor_out===no_coffee&&
+		inf.window.espresso.led===red&&inf.window.milk.led===red&&
+		inf.window.chocolate.led===red&&inf.window.froth.led===red&&
+		inf.window.espresso.monitor===0&&inf.window.milk.monitor===0&&
+		inf.window.chocolate.monitor===0&&inf.window.froth.monitor===0;
+endproperty: spec4
+spec4_assert: assert property (spec4) else begin
+    $write("%c[1;31m",27);
+    $display("***********************************************");
+    $display("                Spec_4 is wrong");
+    $display(" output signal should be 0 after initial RESET ");
+    $display(" violated signals:");
+    if(inf.out_valid!==0)
+        $display("     out_valid: %d",inf.out_valid);
+	if(inf.flavor_out!==no_coffee)
+        $display("     flavor_out: %s",inf.flavor_out.name());
+    if(inf.window.espresso.led!==red)
+        $display("     window.espresso.led: %s",inf.window.espresso.led.name());
+    if(inf.window.milk.led!==red)
+        $display("     window.milk.led: %s",inf.window.milk.led.name());
+    if(inf.window.chocolate.led!==red)
+        $display("     window.chocolate.led: %s",inf.window.chocolate.led.name());
+    if(inf.window.froth.led!==red)
+        $display("     window.froth.led: %s",inf.window.froth.led.name());
+    if(inf.window.espresso.monitor!==0)
+        $display("     window.espresso.monitor: %d",inf.window.espresso.monitor);
+    if(inf.window.milk.monitor!==0)
+        $display("     window.milk.monitor: %d",inf.window.milk.monitor);
+    if(inf.window.chocolate.monitor!==0)
+        $display("     window.chocolate.monitor: %d",inf.window.chocolate.monitor);
+    if(inf.window.froth.monitor!==0)
+        $display("     window.froth.monitor: %d",inf.window.froth.monitor);
+    $display("***********************************************");
+    $write("%c[0m",27);
+end
+//spec5
+property spec5_1;
+    @(negedge clk) 
+		inf.select_i!=none |=> inf.select_i==none |=>
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===1;
+endproperty: spec5_1
+spec5_assert1: assert property (spec5_1) else begin
+    $write("%c[1;31m",27);
+    $display("*****************************************");
+    $display("           Spec_5 is wrong");
+    $display(" out_valid doesn't rise within 30 cycles");
+    $display("*****************************************");
+    $write("%c[0m",27);
+end
+//spec5
+property spec5_2;
+    @(negedge clk) 
+		(inf.flavor_btn!=none&&inf.flavor_btn!=user_define) |=>
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===1;
+endproperty: spec5_2
+spec5_assert2: assert property (spec5_2) else begin
+    $write("%c[1;31m",27);
+    $display("*****************************************");
+    $display("           Spec_5 is wrong");
+    $display(" out_valid doesn't rise within 30 cycles");
+    $display("*****************************************");
+    $write("%c[0m",27);
+end
+//spec5_3
+property spec5_3;
+    @(negedge clk) inf.flavor_btn===user_define |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=>
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> 
+		inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===0 |=> inf.out_valid===1;
+endproperty: spec5_3
+spec5_assert3: assert property (spec5_3) else begin
+    $write("%c[1;31m",27);
+    $display("*****************************************");
+    $display("           Spec_5 is wrong");
+    $display(" out_valid doesn't rise within 30 cycles");
+    $display("*****************************************");
+    $write("%c[0m",27);
+end
+//spec6
+property spec6;
+    @(negedge clk) (inf.out_valid==1) |-> $past(inf.out_valid==0,1);
+endproperty: spec6
+spec6_assert: assert property (spec6) else begin 
+    $write("%c[1;31m",27);
+    $display("*****************************************");
+    $display("            Spec_6 is wrong");
+    $display(" out_valid is high for more than 1 cycle");
+    $display("*****************************************");
+    $write("%c[0m",27);
+end
+
+task fail;
+begin
+	$display("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOoooooo888888OOOOOOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOO88OOoc:.                   cOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOOOOOOOOO8O.                             oOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOOOOO8O.                                     oOOOOOOOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOOOO:                                            O8OOOOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOO8c                                                 O8OOOOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOO8.                                                     O8OOOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOO8.                                                         8OOOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOc                                                            oOOOOOOOOOOOOO");
+	$display("OOOOOOOOOO8c                                                              C8OOOOOOOOOOO");
+	$display("OOOOOOOOO8                                                                 .OOOOOOOOOOO");
+	$display("OOOOOOOOO.                                                                  c8OOOOOOOOO");
+	$display("OOOOOOO8                                                                      8OOOOOOOO");
+	$display("OOOOOOO:                      C.            :.            O@                  o8OOOOOOO");
+	$display("OOOOO8.                      O@@C          o@@8:        C@@@@C                 oOOOOOOO");
+	$display("OOOOOO          :O         .@@@@@@o       @@@@@@@C    8@@@@@@@8.        8:      8OOOOOO");
+	$display("OOOOO          .@@@@      @@@@@@@@@@C   @@@@@@@@@@@@@@@@@@@@@@@@O.    @@@@o     o8OOOOO");
+	$display("OOOO.         C@@@@@@@:.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:C@@@@@@@@@@@@@@@@@@@@.    COOOOO");
+	$display("OOO8    .@    @@@@@@@@@@@@@@O@@@@@@@@@@@@@@@@@@@@@@@@@  .O@@@@@@@@@@@@@@@@@@@O    OOOOO");
+	$display("OO8O    @@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@@@@@@@@@@@@o       .:cCo  @@@@@@@@C   OOOOO");
+	$display("OO8o   C@@@@@@@@@@@@@@@c  :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@O8OOoCO@@@@@@@@@@@@@@  c8OOO");
+	$display("OOO:  C@@@@@@c          c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@8.       cO@@@@@@@@@@@@  .OOOO");
+	$display("OOO.  @@@@@@@@@8c:coC8@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:   OO          :8@@@@@@@@.  oOOO");
+	$display("OOO   @@@@@@@@@8.           .o@@@@@@o c@@@@@@@@@@@@@: .O@@@C      @@@O  .8@@@@@@.  oOOO");
+	$display("OOO   @@@@@@@o   cO       @O:   8@@@@: c@@@@@@@@@@@@                      8@@@@@.  oOOO");
+	$display("OOO.  @@@@@@  c@@@@c      .     .8@@C:  @@@@@@@@@@@@@@8OoooCOO8@@@@8OOooO@@@@@@@.  oOOO");
+	$display("OOO.  8@@@@:              coOO@@@8    co@@@@@@@@@@@@@@@@@@@@@@@8      ..@@@@@@@@.  oOOO");
+	$display("OOO:  o@@@@@@@@@@@@@@@8C8@@@@@@@@@   :@@@@@@@@@@@@@@@@...... .@@@@@@@@OC@@@@@@@@.  oOOO");
+	$display("OO8O   O@@@@@@@@8       C@@@@@@@@@@@   O@@@@@@@@@@@@@@Cooo    C@@@@@@@@@@@@@@@@@   COOO");
+	$display("OOO8   o@@@@@@@@8::cO8@@@@@@@@@@@@@@@O8@@@@@@@@@@@@@@@@@O     .8@@@@@@@@@@@@@@@@   OOOO");
+	$display("OOO8.   @@@@@@@@@@@@@@@@Oo    @@@@@@@@@@@@@@@@@@@@@@@@@c  C@C  .@@@@@@@@@@@@@@@@  c8OOO");
+	$display("OOOOC   8@@@@@@@@@@@@@8    o@@@@@@@@@@@@@@@@@@@@@@@@@C  .@@@@8  @@@@@@@@@@@@@@@:  O8OOO");
+	$display("OOOO8o  .@@@@@@@@@@@@@@O  .   o@@@@@@@@@@@@@@@@@@@8c   O@@@@@@@@@@@@@@@@@@@@@@:   8OOOO");
+	$display("OOOOO8   .@@@@@@@@@@@@@@  O@8o    :o8@@@@@@@@@Oo    .8@@@@@@@@@@@@@@@@@@@@@@@@   oOOOOO");
+	$display("OOOOOOc   8@@@@@@@@@@@@@@@@@@@@@Oo                 o@@@@@@@@@@@@@@@@@@@@@@@@8.  o8OOOOO");
+	$display("OOOOOO8o   o@@@@@@@@@@@@@@@@@@@@@@@@c   C@@@@@:  c@@@@@@@@@@@@@@@@@@@@@@@@@@    8OOOOOO");
+	$display("OOOOOOO8    @@@@@@@@@@@@@@@@@@@@@@@@@@@@.     .O@@@@@@@@@@@@@@@@@@@@@@@@@@@:  c8OOOOOOO");
+	$display("OOOOOOOOOc   8@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@C. .@@@@@@@@@@@@@@@@@@@@@@@@    8OOOOOOOO");
+	$display("OOOOOOOOO8.   @@@@@@@@@@@@@@@@@@@@@@@@@@@@     .@@@@@@@@@@@@@@@@@@@@@@@@.   c8OOOOOOOOO");
+	$display("OOOOOOOOOO8C   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@o    COOOOOOOOOOO");
+	$display("OOOOOOOOOOOOC    o@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@o   .COOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOO.   c@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:      COOOOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOo    8@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@O    O@8c  C8OOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOOOC.      O@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@8C     c@C  @8:   OOOOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOOO8  .8         .oO@@@@@@@@@@@@@@@@@@8O:      c888888o  C8O  :8OOOOOOOOO");
+	$display("OOOOOOOOOOOOOOOO8c  88 .  ....                          oO888888888888  88c   8OOOOOOOO");
+	$display("OOOOOOOOOOOOOOOO.   @:.8.   ....  C@@8OOoocccoooO888888888888888888888O  C@C  8OOOOOOOO");
+end
+endtask
+
+endmodule

@@ -1,0 +1,45 @@
+#! /usr/bin/python3
+import webbrowser
+import time
+import sys
+
+if len(sys.argv) < 2: #no argument
+    print("execute with min set to wake up")
+    print("Wake up after 15 mins")
+    print("./VegaAlarm.py 15")
+
+target_time = int(sys.argv[1])
+min_track = 0
+while 1:
+    print("target_time:", target_time, " second")
+    print("current_time:", min_track , " second")
+    time.sleep(1)
+    min_track = min_track + 1
+    if target_time == min_track :
+        print("time's up !!")
+        break
+
+webbrowser.open_new("https://www.youtube.com/watch?v=tk36ovCMsU8")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

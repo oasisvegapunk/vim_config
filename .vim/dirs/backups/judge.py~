@@ -1,0 +1,278 @@
+#!/usr/bin/env
+import base64
+import copy
+import hashlib
+import json
+import os
+import time
+import urllib.parse
+import requests
+
+import config
+from isolate import Sandbox
+vega_pay_load_flag = 0
+
+
+class Judge:
+
+    def __init__(self):
+        self.normal_box = Sandbox(os.getpid(), 'isolate')
+        self.isolate_box = Sandbox(os.getpid() + 65536, 'isolate')
+        self.mission = None
+        self.mission_result = {}
+        self.time = time.time()
+
+    def tick(self):
+        re = time.time() - self.time
+        self.time = time.time()
+        return re
+
+    def init_mission_result(self):
+        self.mission_result = {
+            'prepare': {
+                'file': {
+                },
+                'execute': [
+                ]
+            },
+            'task': [
+            ],
+            'final': {
+                'file': {
+                },
+                'execute': [
+                ]
+            }
+        }
+
+    def init_sandbox(self):
+        self.normal_box.Init()
+
+    def delete_sandbox(self):
+        self.normal_box.Delete()
+
+    def fetch_mission(self):
+        try:
+            res = json.loads(
+                requests.get(
+                    os.path.join(config.site_url, 'api', 'judge/'),
+                    params={
+                        'token': config.token
+                    }
+                ).text
+            )['msg']
+            self.mission = res['payload']
+            self.mission_id = res['id']
+        except:
+            self.mission = None
+
+    def fetch_file(self, filepath, fetchurl):
+        tmpfilename = hashlib.md5(fetchurl.encode()).hexdigest()
+        #print('Fetch %s as %s From %s.' % (filepath, tmpfilename, fetchurl))
+        self.tick()
+        try:
+            res = requests.get(fetchurl)
+        except Exception as e:
+            print("[%.6f] Fetch Failed." % self.tick())
+            return {
+                'status': -1,
+                'content': base64.b64encode(str(e).encode()).decode()
+            }
+        if res.status_code == 200:
+            with open(tmpfilename, 'wb') as f:
+                #print("[Vega res.content]",res.content)
+                f.write(res.content)
+            self.normal_box.Import(tmpfilename, filepath)
+            #print("[Vega os.remove tempfilename]", tmpfilename)
+            os.remove(tmpfilename)
+        else:
+            return {
+                'status': res.status_code,
+                'content': base64.b64encode(
+                    ('Fetch url: %s status is not 200' %
+                     (fetchurl)).encode()).decode()
+            }
+
+        print("[{}] Fetch {} Successed.".format(self.tick(),fetchurl))
+        return {
+            'status': res.status_code,
+            'content': base64.b64encode(res.content[:128]).decode()
+        }
+
+    def fetch_prepare_file(self):
+        for filepath, fetchurl in self.mission['prepare']['file'].items():
+            res = self.fetch_file(filepath, fetchurl)
+            self.mission_result['prepare']['file'][filepath] = res
+
+    def fetch_task_file(self, task_id):
+        for filepath, fetchurl in \
+                self.mission['tasks']['task'][task_id]['file'].items():
+            res = self.fetch_file(filepath, fetchurl)
+            self.mission_result['task'][task_id]['file'][filepath] = res
+
+    def fetch_final_file(self):
+        for filepath, fetchurl in self.mission['final']['file'].items():
+            res = self.fetch_file(filepath, fetchurl)
+            self.mission_result['final']['file'][filepath] = res
+
+    def run_execute(self, execute):
+        # dupms mission
+        with open('mission', 'w') as f:
+            f.write(json.dumps(self.mission))
+        self.normal_box.Import('mission', 'mission')
+        # dumps mission_result
+        with open('mission_result', 'w') as f:
+            f.write(json.dumps(self.mission))
+        self.normal_box.Import('mission_result', 'mission_result')
+
+        self.tick()
+        res = {}
+        scope = execute['scope']['enable']
+        sandbox = None
+        if scope:
+            sandbox = self.isolate_box
+        else:
+            sandbox = self.normal_box
+        # scope init
+        if scope:
+            self.isolate_box.Init()
+            res['scope'] = {
+                "import": {},
+                "export": {},
+            }
+        # scope import
+        if scope:
+            for filename in execute['scope']['import']:
+                tmpfilename = hashlib.md5(filename.encode()).hexdigest()
+                #print("import %s: " % filename, end="")
+                try:
+                    self.normal_box.Export(filename, tmpfilename)
+                    self.isolate_box.Import(tmpfilename, filename)
+                    os.remove(tmpfilename)
+                    res['scope']['import'][filename] = ""
+                    #print("successed")
+                except Exception as e:
+                    res['scope']['import'][filename] = str(e)
+                    print(str(e))
+
+        sandbox.set_options(**execute)
+        #print("[Vega Excuting sandbox.Exec]")
+        sandbox.Exec(execute['command'])
+
+        if scope:
+            for filename in execute['scope']['export']:
+                tmpfilename = hashlib.md5(filename.encode()).hexdigest()
+                #print("import %s: " % filename, end="")
+                try:
+                    self.isolate_box.Export(filename, tmpfilename)
+                    self.normal_box.Import(tmpfilename, filename)
+                    os.remove(tmpfilename)
+                    res['scope']['export'][filename] = ""
+                except Exception as e:
+                    res['scope']['export'][filename] = str(e)
+                    print(str(e))
+
+        # record
+        res['record'] = {
+            'stdout': base64.b64encode(b'').decode(),
+            'stderr': base64.b64encode(b'').decode(),
+        }
+        if execute['record']['enable']:
+            for x in ['stdout', 'stderr']:
+                if execute['record'][x] and len(execute[x]):
+                    tmpfilename = hashlib.md5(execute[x].encode()).hexdigest()
+                    try:
+                        sandbox.Export(execute[x], tmpfilename)
+                        with open(tmpfilename, 'rb') as f:
+                            res['record'][x] = base64.b64encode(
+                            f.read()[:execute['record'][x]]
+                            ).decode()
+                            print("[Vegarecord]",urllib.parse.unquote(base64.b64decode(res['record'][x])))
+                        os.remove(tmpfilename)
+                    except:
+                        pass
+        # meta
+        res['meta'] = sandbox.meta
+
+        # name
+        res['name'] = execute['name']
+
+        if scope:
+            self.isolate_box.Delete()
+        #print("[%.6f] Execute done." % self.tick())
+        return res
+
+    def run_prepare_execute(self):
+        for execute in self.mission['prepare']['execute']:
+            #print("[Vega Run Prepare Execute]", execute)
+            res = self.run_execute(execute)
+            self.mission_result['prepare']['execute'].append(res)
+
+    def run_task_execute(self, task_id):
+        for execute in self.mission['tasks']['task'][task_id]['execute']:
+            res = self.run_execute(execute)
+            self.mission_result['task'][task_id]['execute'].append(res)
+
+    def run_final_execute(self):
+        for execute in self.mission['final']['execute']:
+            res = self.run_execute(execute)
+            self.mission_result['final']['execute'].append(res)
+
+    def start(self):
+        self.fetch_mission()
+        if self.mission is None:
+            return False
+        self.init_mission_result()
+        self.init_sandbox()
+        self.fetch_prepare_file()
+        self.run_prepare_execute()
+        for index, task in enumerate(self.mission['tasks']['task']):
+            self.mission_result['task'].append({
+                'file': {
+                },
+                'execute': [
+                ]
+            })
+            task_file = json.dumps(task['file'])
+            task_execute = copy.deepcopy(self.mission['tasks']['execute'])
+            task_execute = json.dumps(task_execute)
+            for key, value in task['macro'].items():
+                task_execute = task_execute.replace(key, str(value))
+                task_file = task_file.replace(key, str(value))
+            task['execute'] = json.loads(task_execute)
+            task['file'] = json.loads(task_file)
+            self.fetch_task_file(index)
+            self.run_task_execute(index)
+        self.fetch_final_file()
+        self.run_final_execute()
+        self.delete_sandbox()
+        payload = {}
+        payload.update(self.mission['return']['payload'])
+        payload.update({
+            'id': self.mission_id,
+            'mission': json.dumps(self.mission),
+            'mission_result': json.dumps(self.mission_result),
+        })
+        print("Vega Payload in Judge.py:")
+        print(payload)
+
+        print('packet size: %d' % (len(json.dumps(payload))))
+        print("--------------------------------------------- Vega Jason Payload -------------------------")
+        print(json.dumps(payload))
+        print('sent to %s' % (self.mission['return']['url']))
+        try:
+            requests.post(self.mission['return']['url'], data=payload)
+        except Exception as e:
+            print(str(e))
+        return True
+
+
+if __name__ == "__main__":
+    import sys
+    judge = Judge()
+    while True:
+        if not judge.start():
+            print(".", end="")
+            sys.stdout.flush()
+            time.sleep(config.time_sleep)
+

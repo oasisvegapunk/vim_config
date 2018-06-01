@@ -1,0 +1,11 @@
+#! /usr/bin/python2.7
+
+from Crypto.PublicKey import RSA
+rsa = RSA.importKey(open("public.pem").read())
+print rsa.n
+
+print dir(rsa)
+
+print rsa.key
+print rsa.e
+print rsa.n

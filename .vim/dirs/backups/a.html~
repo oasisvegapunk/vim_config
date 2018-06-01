@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head> <!--主要是這網頁文件相關的資訊 標題  編碼格式 文件icon,   css 樣式定義  , script 程式碼 -->
+        <meta charset="utf-8">   <!-- meta tag 沒有內容 所以不需要加 ending tag -->   <!-- 這邊設定的是 瀏覽器的編碼 但是要小心我們自己的編輯器編碼可能不是 utf-8 所以可能造成 瀏覽器讀取 此檔案時造成編碼錯誤   瀏覽器的編碼 與 編輯器的編碼必須相符合-->
+        <title>我的第一個html</title>
+    </head>
+    
+    <body>
+        <h1 
+                style="color: red; font-weight:bold; text-align:center"
+                onclick='this.style.color="green";'
+        > <!--這邊是執行 javaScript 的程式  -->
+        Vega's First HTML  
+        </h1>
+        <h4> 你好 </h4>
+    </body>
+
+</html>

@@ -1,0 +1,8 @@
+#! /bin/usr/env python3
+import subprocess
+data = b'Justin\n'
+
+p = subprocess.Popen(['python3', 'hi.py'], stdin= subprocess.PIPE, stdout = subprocess.PIPE)
+result = p.communicate(input = data)
+?!?jedi=0, ?!?     (*_*param value*_*, param ..., param sep, param end, param file, param flush) ?!?jedi?!?
+print(result) # first is stdout, second is stderr

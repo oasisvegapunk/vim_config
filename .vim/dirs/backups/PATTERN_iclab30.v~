@@ -1,0 +1,349 @@
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   2017 ICLAB Fall Course
+//   Lab03    : Magical Dartboard
+//   Author         : Li-wei Liu
+//
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : PATTERN.v
+//   Module Name : PATTERN
+//   Release version : v1.0
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
+`define CYCLE_TIME 3.0
+`timescale 1ns/10ps
+
+module PATTERN(
+        //  input signals
+	clk,
+	rst_n,
+	in_valid_1,
+	in_valid_2,
+	in_score,
+	in_dart,
+        in_rotation,
+	rotate_flag,
+        // output signals
+	out_valid,
+        out_sum
+);
+
+//================================================================
+//   INPUT AND OUTPUT DECLARATION                         
+//================================================================
+output reg clk, rst_n,in_valid_1,in_valid_2,rotate_flag;
+output reg [2:0] in_score, in_rotation;
+output reg [3:0] in_dart;
+
+input out_valid;
+input [6:0] out_sum;
+
+
+//================================================================
+// parameters & integer
+//================================================================
+real CYCLE = `CYCLE_TIME;
+integer dart_num, total_latency, lat;
+integer after_reset; // flag for check the reset
+integer b_test_index, ans_gen_index,rotate_index;
+
+integer tmp_swap,total_score,tmp_score,swap_index;
+integer patcount;
+integer out_valid_check_cnt;
+
+//================================================================
+// wire & registers 
+//================================================================
+reg [2:0] in_score_seq[0:15];
+reg [6:0] ans;
+
+
+integer in_rotation_seq[0:9];
+integer in_dart_seq[0:9];
+integer rotate_flag_seq[0:9];
+integer seed;
+
+//================================================================
+// clock
+//================================================================
+always #(CYCLE/2.0) clk = ~clk;
+initial clk=0;
+
+//================================================================
+// initial
+//================================================================
+initial begin
+    forever @(negedge clk) out_sum_low_check;
+end
+initial begin
+    forever out_valid_1_cycle_check;
+end
+
+
+initial begin
+    seed = 220;
+    patcount = 1;
+    rst_n = 1; in_valid_1 =0 ; in_valid_2=0; in_score = 3'bx; in_rotation = 3'bx; in_dart = 4'bx; rotate_flag = 1'bx;
+
+    total_latency = 0; after_reset = 0;
+    #(0.5); rst_n =1'b0;
+    /*SPEC_3
+      force   out_sum = 1;
+    */
+
+    reset_signal_testing_task;
+    #(10); rst_n = 1;
+
+    // boundary_test 
+    boundary_test;
+    ans_gen;
+    wait_OUT_VALID;
+    check_ans;
+    patcount = patcount +1;
+
+    random_test;
+    ans_gen;
+    wait_OUT_VALID;
+    check_ans;
+    patcount = patcount +1;
+
+    repeat(10000) taskgen;
+
+
+    /* Spec_4
+    random_test;
+    ans_gen;
+    force out_valid = 0;
+    wait_OUT_VALID;
+    check_ans;
+    patcount = patcount +1;
+    */
+
+    /* Spec_5
+    random_test;
+    ans_gen;
+    wait_OUT_VALID;
+    force out_valid = 1;
+    check_ans;
+    #(CYCLE);
+    #(CYCLE);
+    patcount = patcount +1;
+    */
+
+    /* Spec_6
+    random_test;
+    ans_gen;
+    force out_valid = 0;
+    force out_sum = 0;
+    wait_OUT_VALID;
+    check_ans;
+    patcount = patcount +1;
+    */
+
+    /* Spec_7
+    random_test;
+    ans_gen;
+    wait_OUT_VALID;
+    force out_sum = 0;
+    check_ans;
+    patcount = patcount +1;
+    */
+
+    YOU_PASS_task;
+end
+
+
+//================================================================
+// task
+//================================================================
+task taskgen;begin
+    random_test;
+    ans_gen;
+    wait_OUT_VALID;
+    check_ans;
+    patcount = patcount +1;
+end endtask
+
+task reset_signal_testing_task;begin
+    #(2.0);
+    if( (|out_sum) || out_valid )begin
+                $display("************************************************************");
+                $display("*                    Spec_3 Is Fail !                      *");
+                $display("*output signal should be 0 after initial RESET at %t       *",$time);
+                $display("************************************************************");
+                $finish;
+    end
+    #(3); release clk; // Vega Question ? Why force and release clock
+    after_reset = 1;
+    
+end endtask
+
+task boundary_test;begin
+    repeat(2)@(negedge clk);
+    in_valid_1 = 1;
+    for(b_test_index = 0; b_test_index <16 ; b_test_index = b_test_index + 1)begin
+        in_score_seq[b_test_index] = 'b0;
+        in_score = in_score_seq[b_test_index];
+        @(negedge clk);
+    end
+    in_valid_1 = 'b0;
+    repeat(2)@(negedge clk);
+
+    dart_num = (($random(seed)%'d8) + 'd3); // dart_num generate from 3 to 10
+    in_valid_2 = 'b1;
+
+    for(b_test_index =0 ; b_test_index < dart_num ; b_test_index = b_test_index + 1)begin
+        in_dart_seq[b_test_index] = ($random(seed)%'d16);
+        in_rotation_seq[b_test_index] = ($random(seed)%'d8);
+        rotate_flag_seq[b_test_index] = ($random(seed)%'d2);
+        in_dart = in_dart_seq[b_test_index];
+        in_rotation = in_rotation_seq[b_test_index];
+        rotate_flag = rotate_flag_seq[b_test_index];
+        @(negedge clk);
+    end
+    in_valid_2 = 'b0;
+end endtask
+
+task random_test;begin
+    repeat(2)@(negedge clk);
+    in_valid_1 = 1;
+    for(b_test_index = 0; b_test_index <16 ; b_test_index = b_test_index + 1)begin
+        in_score_seq[b_test_index] = ($random(seed)%8);
+        in_score = in_score_seq[b_test_index];
+        @(negedge clk);
+    end
+    in_valid_1 = 'b0;
+    repeat(2)@(negedge clk);
+
+    dart_num = (($random(seed)%'d8) + 'd3); // dart_num generate from 3 to 10
+    in_valid_2 = 'b1;
+
+    for(b_test_index =0 ; b_test_index < dart_num ; b_test_index = b_test_index + 1)begin
+        in_dart_seq[b_test_index] = ($random(seed)%'d16);
+        in_rotation_seq[b_test_index] = ($random(seed)%'d8);
+        rotate_flag_seq[b_test_index] = ($random(seed)%'d2);
+        in_dart = in_dart_seq[b_test_index];
+        in_rotation = in_rotation_seq[b_test_index];
+        rotate_flag = rotate_flag_seq[b_test_index];
+        @(negedge clk);
+    end
+    in_valid_2 = 'b0;
+end endtask
+
+task wait_OUT_VALID;begin
+    lat = -1;
+    while(out_valid !== 1)begin
+        lat = lat + 1;
+        if(lat == 100)begin
+                    $display("***************************************************************");
+                    $display("*                    Spec_6 Is Fail !                      *");
+                    $display("*         The execution latency are over 100 cycles.          *");
+                    $display("***************************************************************");
+                    repeat(2)@(negedge clk);
+                    $finish;
+        end
+        @(negedge clk);
+    end
+    total_latency = total_latency + lat;
+end endtask
+
+task out_sum_low_check;begin
+    if(!out_valid && out_sum)begin
+                $display("************************************************************");
+                $display("*                    Spec_4 Is Fail !                      *");
+                $display("************************************************************");
+                $finish;
+    end
+end endtask
+
+task out_valid_1_cycle_check;begin
+    out_valid_check_cnt = -1;
+    @(posedge out_valid);
+    while(out_valid == 'b1)begin
+        out_valid_check_cnt = out_valid_check_cnt +1;
+        if(out_valid_check_cnt > 1)begin
+                    $display("************************************************************");
+                    $display("*                    Spec_5 Is Fail !                      *");
+                    $display("************************************************************");
+                    $finish;
+        end
+        @(negedge clk);
+    end
+
+end endtask
+
+task ans_gen;begin
+    total_score = 'd0;
+    tmp_score = 'd0;
+    for(ans_gen_index = 0 ; ans_gen_index < dart_num ; ans_gen_index = ans_gen_index +1)begin
+        tmp_score = in_score_seq[in_dart_seq[ans_gen_index]];
+        total_score = total_score + tmp_score;
+
+        // ROTATION
+        if(in_rotation_seq[ans_gen_index] == 0 )begin
+            for(swap_index = 0; swap_index < 8 ; swap_index = swap_index + 1)begin
+                tmp_swap = in_score_seq[swap_index];
+                in_score_seq[swap_index] = in_score_seq[swap_index + 8];
+                in_score_seq[swap_index + 8] = tmp_swap;
+            end
+        end
+        else if(rotate_flag_seq[ans_gen_index])begin// rotat_flag = 1 , inner counter clockwise
+            for(rotate_index = 0; rotate_index < in_rotation_seq[ans_gen_index] ; rotate_index = rotate_index + 1)begin
+                {in_score_seq[0],in_score_seq[1],in_score_seq[2],in_score_seq[3], 
+                in_score_seq[4],in_score_seq[5],in_score_seq[6],in_score_seq[7]}
+                =
+                {in_score_seq[1],in_score_seq[2],in_score_seq[3],in_score_seq[4],
+                in_score_seq[5],in_score_seq[6],in_score_seq[7],in_score_seq[0]};
+            end
+        end
+        else begin// rotate clockwise
+            for(rotate_index = 0; rotate_index < in_rotation_seq[ans_gen_index] ; rotate_index = rotate_index + 1)begin
+                {in_score_seq[0],in_score_seq[1],in_score_seq[2],in_score_seq[3], 
+                in_score_seq[4],in_score_seq[5],in_score_seq[6],in_score_seq[7]}
+                =
+                {in_score_seq[7],in_score_seq[0],in_score_seq[1],in_score_seq[2],
+                in_score_seq[3],in_score_seq[4],in_score_seq[5],in_score_seq[6]};
+            end
+        end
+    end
+    ans = total_score;
+
+end endtask
+
+task check_ans; begin
+    if(ans !== out_sum) begin
+        $display("**************************************************************");
+        $display("*                      Spec_7 Is Fail !                      *");
+        $display("*                       Wrong Answer                         *");
+        $display("*                       PATTERN NO.%4d                   ",patcount);
+        $display("*                 Ans : %d,  Your output : %d  at %8t         ",ans,out_sum,$time);
+        $display("**************************************************************");
+
+        repeat(2) @(negedge clk);
+        $finish;
+    end
+    else begin
+        $display("PASS PATTERN NO.%4d,execution cycle : %3d,ANS : %d, Your output: %d",patcount,lat,ans,out_sum);
+    end
+
+end endtask
+
+task YOU_PASS_task;begin
+$display ("-------------------------------------------------------------------");
+$display ("                         Congratulations!                          ");
+$display ("                  You have passed all patterns!                    ");
+$display ("                 Your execution cycles = %5d cycles                ", total_latency);
+$display ("                    Your clock period = %.1f ns                    ", CYCLE);
+$display ("                    Your total latency = %.1f ns                   ", total_latency*CYCLE);
+$display ("-------------------------------------------------------------------");    
+$finish;
+end endtask 
+
+endmodule

@@ -1,0 +1,12 @@
+#site_url = "http://140.113.122.249:6543"
+site_url = "localhost:3019"
+token = "JudgeToken"
+payload = {}
+gitlab = {
+    'owner': 'FormosaOJ',
+    'repository': 'Judge',
+    'branch': 'master',
+    'testdata_path': 'test/mission',
+    'token': 'JudgeToken'
+}
+time_sleep = 4

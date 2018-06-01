@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, maximum-scale=1.0">
+  <title>淨化室內空氣品質</title>
+  <link rel="stylesheet" type="text/css" href="building.css">
+</head>
+<body>
+  <div id="container">
+	 <header>
+		<img src="logo.jpg" alt="LOGO" width="98" height="76" id="logo">
+		<form action="#" method="post" id="form-search">
+		   <label for="search">Search:</label>
+		   <input type="text" name="search" id="search" value="">
+		   <input type="submit" value="go">
+		</form>
+		<nav>
+		   <ul id="nav">
+			  <li><a href="#">首頁</a></li>
+			  <li><a href="#">關於我</a></li>
+			  <li><a href="#">目錄一</a></li>
+			  <li><a href="#">目錄二</a></li>
+			  <li><a href="#">目錄三</a></li>
+			  <li><a href="#">聯絡資訊</a></li>
+		   </ul>
+		</nav>
+	 </header>
+	 <article>
+		<h1>室內植物減少空氣污染</h1>
+		<p>
+		   植物葉片表面是由角質層、臘質及氣孔所組成，其中氣孔的面積雖只佔整個葉
+		   片面積的1%以下；但植物與外界進行的氣體交換是由高濃度往低濃度擴散，故大氣
+		   中濃度高之空氣污染物會往植物體內擴散。而植物葉片除了氣孔之外，角質層及其
+		   下方的細胞壁並非完全鈍性，有些化性十分活潑的氣體或物質可以直接與這些角質
+		   層作用，例如氟化氫(HF)、氯化氫(HCl)、過氧化氫(H2O2)、硝酸(HNO3)等。事實上，
+		   有甚多實驗曾設法將植物氣孔封閉，並在黑暗的情況下，一樣可以測出部分的二氧
+		   化硫(SO2)、臭氧(O3)或其他氣體經由氣孔以外的部位被吸收或吸附，且其量可及氣
+		   孔全開時的1/7 至1/2。這些皆說明植物對氣體的吸收途徑是複雜的（孫，1993）。
+		   利用擺設室內植物可減少落塵、二氧化碳及VOCs，抑制微生物，維持空氣濕度，可
+		   使我們日常活動空間更為舒適、健康。
+		<div class="plant" id="plant-adiantum">
+           <img src="./adiantum.jpg">
+		   <h2>鐵線蕨</h2>
+		   <h3>Adiantum capillus-veneris</h3>
+		   <p>
+			  鐵線蕨原產於北美、熱帶美洲及東亞地區。
+			  屬名Adiantum 為「乾燥」的意思，種名capillus-veneris 為「維納斯的頭髮」，形容其植株型態飄逸。
+			  鐵線蕨又稱鐵絲草、石中珠、少女的髮絲，為鐵線蕨屬多年生草本植物，
+			  性喜明亮、高相對濕度之環境。密葉鐵線蕨生長適溫為15-25℃，而臺灣原生之鐵線
+			  蕨在20-30℃下，生長良好。約40%-60%遮光為佳，忌強烈日照直射。介質須排水良
+			  好，含腐殖質高者為佳。其根莖匍匐，短而密被鱗片，自根莖上抽出葉片，總葉柄
+			  長約5-25 公分，黑褐色，有光澤且具韌性，如鐵絲般硬挺不易斷裂。葉身為2-3 回
+			  羽狀複葉，葉端為1-2 回羽狀，羽狀裂片長約12-25 公分，呈自然彎垂，小羽片扇形，
+			  具細柄，羽片上有缺刻，薄膜質，葉脈游離，2 叉分歧，孢子囊群著生於葉緣，著生後葉緣會反捲以保護孢子囊群。
+		   </p>
+		</div>
+		<div class="plant" id="plant-anthurium">
+           <img src="./anthurium.jpg">
+		   <h2>火鶴花</h2>
+		   <h3>Anthurium spp.</h3>
+		   <p>
+			  火鶴花原生於哥倫比亞及美洲熱帶地區，在哥斯大黎加、瓜地馬拉都有廣泛的分布。
+			  屬名由anthos（花）及oura（尾巴）所組成，指其肉穗花序貌似尾巴。
+			  火鶴花多為多年生草本植物，葉片卵橢圓至卵披針形，全緣、葉色濃綠、平滑、
+			  革質，葉柄堅硬細長。火鶴花葉片濃綠且亮麗、觀賞期長而深受喜愛，是切花及盆花
+			  的大宗作物。花頂生，佛焰苞片具有明亮蠟質光澤，我們欣賞的部位即為佛焰苞。肉
+			  穗花序圓柱形。於室內窗邊明亮光線處，能夠持續開花，且每個花序觀賞期可達7-8
+			  週之久。
+		   </p>
+		</div>
+		<div class="plant" id="plant-asplenium">
+		   <h2>臺灣山蘇花</h2>
+		   <h3>Asplenium nidus</h3>
+		   <p>
+			  山蘇花原產於熱帶亞洲、臺灣及玻里尼西亞( 中太平洋島群)。
+			  屬名Asplenium 源自於希臘文的a- (無)及splen (膽囊)，
+			  此屬蕨類植物於傳統醫學中為腎病或膽囊疾病的處方，
+			  而種名nidus 的意思是鳥巢，因其狀似鳥類巢穴而得名。
+			  臺灣山蘇花又稱鳥巢蕨，為著生型大型蕨類植物。披針形革質葉片簇生並以
+			  幅射狀開展葉片，中央的巢穴可以接收雨水與腐葉，產生腐殖質提供其生長所需。
+			  葉片光亮且終年長青，葉長可達1 公尺以上。山蘇花(Asplenium antiquum)葉背孢子囊
+			  群呈線形分佈延伸至葉緣。而臺灣中低海拔山區分佈有許多原生的臺灣山蘇花
+			  (Asplenium nidus)，成熟葉背線形孢子囊群，分佈自中肋至葉身中段，未達葉緣。常
+			  見園藝栽培品種有葉身寬闊短小的圓葉山蘇花(Asplenium nidus ‘Avis’)，及葉身瘦長
+			  不規則羽狀深裂的羽裂鳥巢蕨(Asplenium nidus ‘Fimbriatum’)。
+		   </p>
+		</div>
+	 </article>
+	 <footer>
+		<div id="note">
+		   <h2>後記</h2>
+		   <p>許多研究顯示，除了以物理性或化學性的方法來減低「病態建築症候群」（Sick Building Syndrome, SBS）的發生之外，最自然的方式是在室內擺設植物。
+			  行政院環境保護署有鑑於此，特編撰相關資料。
+		   </p>
+		</div>
+		<div id="source">
+		   <h2>資料來源</h2>
+		   <dl>
+			  <dt>行政院環保署</dt>
+			  <dd>網址: <a href="https://www.epa.gov.tw/">https://www.epa.gov.tw/</a></dd>
+		   </dl>
+		</div>
+	 </footer>
+  </div>
+</body>
+</html>

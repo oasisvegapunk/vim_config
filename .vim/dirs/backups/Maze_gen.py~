@@ -1,0 +1,26 @@
+import random
+import numpy as np
+rand_num = random.randint(0,99999)
+random.seed(a=rand_num)
+def maze2graph(maze):
+    height = len(maze)
+    width = len(maze[0]) if height else 0
+    for r_i, row in enumerate(maze):
+    	if(r_i == 0 or r_i == height-1):
+            maze[r_i] = np.ones_like(row)
+    	for c_i,col in enumerate(row):
+    	    if(c_i==0 or c_i == width-1):
+                maze[r_i][c_i] = 1
+                continue
+
+    return maze
+
+graph_size = 15
+maze = np.random.randint(2,size=(graph_size,graph_size))
+
+graph = maze2graph(maze)
+graph[1][1] = 0
+graph[graph_size-2][graph_size-2]=0
+
+for row in graph:
+    print(row)

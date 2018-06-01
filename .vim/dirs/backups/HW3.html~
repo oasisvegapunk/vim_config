@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Javacript Practice</title>
+	<!-- <link rel="stylesheet" type="text/css" href="HW3.css">
+	-->
+	<script src="./HW3.js" type="text/javascript" charset="utf-8"></script>
+</head>
+<body>
+	<h1> Why no showup ?</h1>
+</body>
+</html> 

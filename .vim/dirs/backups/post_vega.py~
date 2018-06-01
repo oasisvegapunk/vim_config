@@ -1,0 +1,126 @@
+import json
+
+data = []
+data.append({
+    "name": "post",
+    "url": "/api/missions/",
+    "method": "post",
+    "payload": {
+        "token": "JudgeToken",
+        'mission_list': json.dumps([{
+            "tick": True,
+            "return": {
+                "url": "http://localhost",
+                "payload": {
+                    "token": "secret.key",
+                }
+            },
+            "prepare": {
+                "file": {
+                    "main.cpp": "http://localhost:3019/mission_vega/submission/1/",
+                    "verdict.cpp": "http://localhost:3019/mission_vega/verdict/",
+                },
+                "execute": [{
+                    "name": "MOIDFY",
+                    "command": [
+                            "g++",
+                            "-std=c++11",
+                            "main.cpp",
+                            "-o",
+                            "a.out"
+                    ],
+                }],
+            },
+            "tasks": {
+                "task": [{
+                    "file": {
+                    },
+                    "macro": {
+                        "__TIME_LIMIT__": "1234",
+                    }
+                }, {
+                    "macro": {
+                        "__TIME_LIMIT__": 20000,
+                    }
+                }],
+                "execute": [{
+                    "name": "execute",
+                    "command": [
+                            "./a.out",
+                    ],
+                    "time_limit": "__TIME_LIMIT__",
+                }, {
+                    "name": "verdict",
+                    "command": [
+                            "/usr/bin/env ls",
+                    ],
+                }]
+            },
+            "final": {
+            }
+        }]),
+        "mission": json.dumps({
+            "tick": True,
+            "return": {
+                "url": "http://return.com/url/",
+                "payload": {
+                    "token": "secret.key",
+                }
+            },
+            "prepare": {
+                "file": {
+                    "main.cpp": "http://submission/1/",
+                    "verdict.cpp": "http://verdict/1/",
+                },
+                "execute": [{
+                    "name": "MOIDFY",
+                    "command": [
+                        "g++",
+                        "-std=c++11",
+                        "main.cpp",
+                        "-o",
+                        "a.out"
+                    ],
+                }],
+            },
+            "tasks": {
+                "task": [{
+                    "file": {
+                    },
+                    "macro": {
+                        "__TIME_LIMIT__": "1234",
+                    }
+                }, {
+                    "macro": {
+                        "__TIME_LIMIT__": 20000,
+                    }
+                }],
+                "execute": [{
+                    "name": "execute",
+                    "command": [
+                        "./a.out",
+                    ],
+                    "time_limit": "__TIME_LIMIT__",
+                }, {
+                    "name": "verdict",
+                    "command": [
+                        "./verdict",
+                    ],
+                }]
+            },
+            "final": {
+            }
+        })
+    },
+    "ignore_but_exist": ["payload"],
+    "response_status": 200,
+    "response_data": {
+        "msg": [{
+            "id": 1,
+            "payload": None
+        }, {
+            "id": 2,
+            "payload": None
+        }]
+    }
+})

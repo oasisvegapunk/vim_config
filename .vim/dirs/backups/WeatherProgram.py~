@@ -1,0 +1,36 @@
+#! /usr/bin/env python3
+
+import re
+import urllib.request
+
+#url = "www.cwb.gov.tw/V7e/forecast/taiwan/Hsinchu_City.htm"
+city = input("Enter your city:")
+url = "http://www.cwb.gov.tw/V7e/forecast/taiwan/"+city+"_City.htm"
+data = urllib.request.urlopen(url).read()
+data_utf8 = data.decode("utf-8")
+print(data_utf8)
+'''
+        <th scope="row">Today 07/25 06:00~07/25 18:00</th>
+                <td>27 ~ 33</td>
+'''
+m = re.search('Today', data_utf8)
+start = m.end() + 1
+end   = start + 6
+date = data_utf8[start:end]
+
+tmpstr = data_utf8[start:start+100]
+
+
+td = re.search("<td>",tmpstr)
+start = td.end()
+end = start + 7
+temperature = tmpstr[start:end]
+
+print("Request Location :{}\n Date: {}\n Temperature Range:{}\n".format(city, date, temperature))
+
+
+
+
+
+
+

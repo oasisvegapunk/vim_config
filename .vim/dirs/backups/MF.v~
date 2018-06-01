@@ -1,0 +1,303 @@
+module MF(
+	// Input signals
+	clk,
+	rst_n,
+	invalid,
+	image_in,
+  // Output signals
+	outvalid,
+	image_out
+);
+//---------------------------------------------------------------------
+//   INPUT AND OUTPUT DECLARATION                         
+//---------------------------------------------------------------------
+input				clk,rst_n,invalid;
+input [7:0]			image_in;
+output	reg 		outvalid;
+output	reg [7:0]	image_out;
+
+//---------------------------------------------------------------------
+// PARAMETER DECLARATION
+//---------------------------------------------------------------------
+parameter S_IDLE  = 'd0;
+parameter S_INPUT = 'd1;
+parameter S_MF    = 'd2;
+parameter S_OUT   = 'd3;
+
+//---------------------------------------------------------------------
+//   WIRE AND REG DECLARATION                             
+//---------------------------------------------------------------------
+reg [7:0] IMAGE [1:120];
+reg[3:0] col_state_cnt;
+reg[3:0] row_state_cnt;
+wire [7:0] index;
+
+wire [6:0] c_node_0_1;
+
+wire [6:0] c_node_1_1,c_node_2_1,c_node_3_1,
+           c_node_1_2,c_node    ,c_node_3_2,
+           c_node_1_3,c_node_2_3,c_node_3_3;
+
+reg [1:0] c_state;
+reg [1:0] n_state;
+
+wire [7:0] C1L,C2L,C3L,
+           C1M,C2M,C3M,
+           C1S,C2S,C3S;
+
+wire [7:0] CML,CMM,CMS;
+reg  [7:0] LAST1,LAST2,LAST3;
+
+wire [2:0] C1flag,C2flag,C3flag,MMflag,dummyflag;
+wire [7:0] median,dummy1,dummy2;
+//---------------------------------------------------------------------
+//   Design
+//---------------------------------------------------------------------
+
+
+//----------------- INPUT STAGE -----------------
+integer i;
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for(i = 1 ; i <= 120 ; i = i +1 )begin
+            IMAGE[i] <= 'b0;
+        end
+    end
+    else if(invalid)begin
+        IMAGE[120] <= image_in;
+        for(i = 120 ; i !=20 ; i = i - 1)begin
+            IMAGE[i-1] <= IMAGE[i];
+        end
+    end
+    else if(c_state == S_MF)begin
+        IMAGE[c_node_0_1] <= median;
+    end
+    else begin
+        for(i = 1 ; i <= 100 ; i = i +1 )begin
+            IMAGE[i] <= IMAGE[i];
+        end
+    end
+end
+
+
+reg  [7:0] median_kernel[1:3][1:3];
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        row_state_cnt <= 'd0;
+    end
+    else begin
+        case(c_state)
+            S_INPUT:begin 
+                row_state_cnt <= 'd2;
+            end
+            S_MF:begin
+                if(n_state == S_OUT)
+                    row_state_cnt <= 'd0;
+                else if(col_state_cnt == 4'd10)
+                    row_state_cnt <= row_state_cnt + 4'd1;
+                else
+                    row_state_cnt <= row_state_cnt ;
+            end
+            S_OUT:begin
+                if(col_state_cnt == 4'd10)
+                    row_state_cnt <= row_state_cnt + 4'd1;
+                else 
+                    row_state_cnt <= row_state_cnt ;
+            end
+            default:begin
+                row_state_cnt <= 'd2;
+            end
+        endcase
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)
+        col_state_cnt <= 4'b0;
+    else if(n_state == S_MF || n_state == S_OUT)begin
+        if(col_state_cnt == 4'd10)begin
+            col_state_cnt <= 4'd1;
+        end
+        else begin
+            col_state_cnt <= col_state_cnt + 4'd1;
+        end
+    end
+    else begin
+        col_state_cnt <= 4'b0;
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+	    image_out <= 8'b0;
+    end
+    else begin
+        image_out <= (c_state == S_OUT)? IMAGE[c_node]:'b0;
+    end
+end
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+	    outvalid <= 8'b0;
+    end
+    else begin
+        outvalid <= (c_state == S_OUT)? 1'b0 :'b0;
+    end
+end
+
+
+
+assign c_node_0_1 = c_node - 20;          
+
+assign c_node_1_1 = c_node - 11;
+assign c_node_1_2 = c_node - 10;
+assign c_node_1_3 = c_node - 9;
+assign c_node_2_1 = c_node - 1;
+assign c_node     = (row_state_cnt <<3 + row_state_cnt<<1)+col_state_cnt;
+assign c_node_2_3 = c_node + 1;
+assign c_node_3_1 = c_node + 9;
+assign c_node_3_2 = c_node + 10;
+assign c_node_3_3 = c_node + 11;
+
+
+/*  median_kernel[1][1],median_kernel[2][1], median_kernel[3][1]
+    median_kernel[2][1],median_kernel[2][2], median_kernel[3][2]
+    median_kernel[3][1],median_kernel[3][2], median_kernel[3][3] */
+
+always@(*)begin
+    if(col_state_cnt == 1 || row_state_cnt == 1)
+        median_kernel[1][1] = 'b0;
+    else 
+        median_kernel[1][1] = c_node_1_1;
+end
+
+always@(*)begin
+    if(col_state_cnt == 1)
+        median_kernel[2][1] = 'b0;
+    else
+        median_kernel[2][1] = c_node_2_1;
+end
+
+always@(*)begin
+    if(col_state_cnt == 1 || row_state_cnt == 9)
+        median_kernel[3][1] = 'b0;
+    else
+        median_kernel[3][1] = c_node_3_1;
+end
+
+always@(*)begin
+    if(row_state_cnt == 1)
+        median_kernel[1][2] = 'b0;
+    else
+        median_kernel[1][2] = c_node_2_1;
+end
+
+always@(*)begin
+    median_kernel[2][2] = c_node;
+end
+
+always@(*)begin
+    if(row_state_cnt == 10)
+        median_kernel[3][2] = 'b0;
+    else
+        median_kernel[3][2] =  c_node_3_2;
+end
+
+
+always@(*)begin
+    if(col_state_cnt == 10 || row_state_cnt == 0)
+        median_kernel[1][3] ='b0;
+    else
+        median_kernel[1][3] = c_node_1_3;
+end
+
+always@(*)begin
+    if(col_state_cnt == 10)
+        median_kernel[2][3] = 'b0;
+    else
+        median_kernel[2][3] = c_node_2_3;
+end
+
+always@(*)begin
+    if(col_state_cnt == 10 || row_state_cnt == 9)
+        median_kernel[3][3] = 'b0;
+    else
+        median_kernel[3][3] = c_node_3_3;
+end
+
+
+
+//---------------- Median Finder --------------
+
+
+comp3 C1(median_kernel[1][1],median_kernel[2][1], median_kernel[3][1],C1L,C1M,C1S,C1flag);
+comp3 C2(median_kernel[2][1],median_kernel[2][2], median_kernel[3][2],C2L,C2M,C2S,C2flag);
+comp3 C3(median_kernel[3][1],median_kernel[3][2], median_kernel[3][3],C3L,C3M,C3S,C3flag);
+comp3 MM(C1M,C2M,C3M,CML,CMM,CMS,MMflag);
+
+always@(*)begin
+    case(MMflag)                                     // L    M    S
+        3'b111:{LAST1,LAST2,LAST3} = {C1S, CMM, C3L};//{in1, in2, in3};
+        3'b101:{LAST1,LAST2,LAST3} = {C1S, CMM, C2L};//{in1, in3, in2};
+        3'b011:{LAST1,LAST2,LAST3} = {C2S, CMM, C3L};//{in2, in1, in3};
+        3'b010:{LAST1,LAST2,LAST3} = {C2S, CMM, C1L};//{in2, in3, in1};
+        3'b100:{LAST1,LAST2,LAST3} = {C3S, CMM, C2L};//{in3, in1, in2};
+        3'b000:{LAST1,LAST2,LAST3} = {C3S, CMM, C1L};//{in3, in2, in1};
+        default:
+               {LAST1,LAST2,LAST3} = 'b0;
+    endcase
+end
+comp3 MEDIAN_LAST(LAST1,LAST2,LAST3,dummy1,median,dummy2,dummyflag);
+//---------------------------------------------------------
+
+//---------------------------------------------------------
+//                  FSM
+//---------------------------------------------------------
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        c_state <= S_IDLE;              
+    end
+    else begin
+        c_state <= n_state;
+    end
+end
+
+always@(*)begin
+    case(c_state)
+         S_IDLE:n_state = (invalid)? S_INPUT : c_state;
+        S_INPUT:n_state = (invalid)? c_state : S_MF;
+           S_MF:n_state = (c_node == 7'd120) ? S_OUT : c_state;
+          S_OUT:n_state = (c_node == 7'd100)? S_IDLE :c_state;
+        default:
+                n_state = c_state;
+    endcase
+end
+
+
+endmodule
+
+module comp3(in1,in2,in3, LARGE,MEDIAN,SMALL, flag);
+
+    input [7:0] in1,in2,in3;
+    output reg [7:0] LARGE,MEDIAN,SMALL;
+    output [2:0] flag;
+
+    assign flag[2] = (in1>in2)? 1'b1 : 1'b0;
+    assign flag[1] = (in2>in3)? 1'b1 : 1'b0;
+    assign flag[0] = (in1>in3)? 1'b1 : 1'b0;
+
+    always@(*)begin
+        case(flag)
+            3'b111:{LARGE,MEDIAN,SMALL} = {in1, in2, in3};
+            3'b101:{LARGE,MEDIAN,SMALL} = {in1, in3, in2};
+            3'b011:{LARGE,MEDIAN,SMALL} = {in2, in1, in3};
+            3'b010:{LARGE,MEDIAN,SMALL} = {in2, in3, in1};
+            3'b100:{LARGE,MEDIAN,SMALL} = {in3, in1, in2};
+            3'b000:{LARGE,MEDIAN,SMALL} = {in3, in2, in1};
+            default:
+                {LARGE,MEDIAN,SMALL} = 'b0;
+        endcase
+    end
+endmodule
+

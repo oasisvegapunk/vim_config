@@ -1,0 +1,5 @@
+#! /usr/bin/env python3
+import subprocess
+p = subprocess.run(['python3', 'hi.py'], input = b'Justin\n', stdout = subprocess.PIPE)
+
+print('result of hi.py', p.stdout)

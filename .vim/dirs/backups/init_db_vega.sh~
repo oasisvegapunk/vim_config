@@ -1,0 +1,35 @@
+#!/bin/bash
+if [ "`which sudo`" = "" ];then
+    SU="su"
+else
+    SU="sudo su"
+fi
+PSQL="env psql"
+CAT="env cat"
+GREP="env grep"
+EXPR="env expr"
+ECHO="env echo"
+CONFIG="./../backend/config.py"
+FLUSH_DB="./flush_db.sh"
+${ECHO} "reading config from ${CONFIG} ..."
+DSN=`${CAT} "${CONFIG}" | ${GREP} "DB_SETTING\['dsn'\]"`
+DSN_RE="DB_SETTING\['dsn'\]\s*=\s*'\(.*\)'"
+DSN=`${EXPR} "${DSN}" : ${DSN_RE}`
+PSQL_FILE="./../psql.sql"
+DBHOST_RE=".*host\s*=\s*\(\S*\).*"
+DBHOST=`${EXPR} "${DSN}" : "${DBHOST_RE}"`
+DBUSER_RE=".*user\s*=\s*\(\w*\).*"
+DBUSER=`${EXPR} "${DSN}" : "${DBUSER_RE}"`
+DBNAME_RE=".*dbname\s*=\s*\(\w*\).*"
+DBNAME=`${EXPR} "${DSN}" : "${DBNAME_RE}"`
+DBPASSWORD_RE=".*password\s*=\s*\(\S*\).*" # use \S non whitespace characters is better 
+DBPASSWORD=`${EXPR} "${DSN}" : "${DBPASSWORD_RE}"`
+${ECHO} "cleaning database...";
+${SU} postgres -c "${PSQL} -c \"DROP DATABASE IF EXISTS ${DBNAME};\""
+${SU} postgres -c "${PSQL} -c \"DROP USER IF EXISTS ${DBUSER};\""
+${ECHO} "initializing database..."
+${SU} postgres -c "${PSQL} -c \"CREATE USER ${DBUSER};\""
+${SU} postgres -c "${PSQL} -c \"CREATE DATABASE ${DBNAME};\""
+${SU} postgres -c "${PSQL} -c \"ALTER USER ${DBUSER} WITH PASSWORD '${DBPASSWORD}';\""
+${SU} postgres -c "${PSQL} -c \"ALTER DATABASE ${DBNAME} OWNER TO ${DBUSER}\""
+${FLUSH_DB}

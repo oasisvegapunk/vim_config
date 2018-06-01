@@ -1,0 +1,61 @@
+#include  <stdio.h>
+struct A{
+    int x,y,c;
+};
+struct B; // no definition => forward declaration
+
+int main(int argc, char* argv){
+    char *ptr;
+    char str[]= "Hello World";
+    char *ptr2;
+    ptr             =           str;
+    ptr2            =           &ptr;
+    printf("Address of ptr    : %x\n", ptr);
+    printf("Address of str    : %x\n", str);
+    printf("Address of &str   : %x\n", &str); // str is the same as &str
+    printf("Address of &ptr2  : %x\n", &ptr2); 
+    
+    struct A a;
+    struct B b;
+    printf("%d %d\n",sizeof(struct A),sizeof(&a));
+    printf("sizeof(&b)=%d\n", sizeof(&b));
+
+}
+/* (char*)                  (char [])
+ *
+ * sizeof(ptr)              sizeof(str)
+ * word[64-bit]=8byte       strlen(str)=11byte
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

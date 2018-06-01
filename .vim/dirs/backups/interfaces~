@@ -1,0 +1,15 @@
+# interfaces(5) file used by ifup(8) and ifdown(8)
+auto wlp8s0,enp7s0f1,lo
+iface lo inet loopback
+
+auto wlp8s0
+iface wlp8s0 inet dhcp
+
+auto enp7s0f1
+iface enp7s0f1 inet static
+
+    address 140.113.123.229
+    netmask 255.255.255.0
+    gateway 140.113.123.254
+    dns-nameservers 140.113.1.1 140.113.6.2
+

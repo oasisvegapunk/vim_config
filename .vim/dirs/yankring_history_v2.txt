@@ -1,0 +1,100 @@
+#define BLOCK 32for (int i=0 ; i < n ; i+=BLOCK){    for(int j=0; j<BLOCK; j++){        arr[i+j] = 2*arr[i+j];    }},V
+,V
+    ,V
+        EMBARC_PRINTF("Estimated Temp:  %d.%d\n",dgr_int,dgr_fract);,V
+        dgr_int     = est_temp/100;        dgr_fract   = est_temp%100;,V
+n,v
+						,v
+													,v
+																			,v
+ out_raw_data,v
+																		,v
+in_raw_data,v
+5,v
+		EMBARC_PRINTF("in_ave: %5d\n",in_raw_data);																					EMBARC_PRINTF("out_ave: %5d\n", out_raw_data);																			,V
+inin,2
+        int integer_digit_in = (int)(in_raw_data*100)/100;        int fract_digit_in   = (int)(in_raw_data*100)%100;,V
+(int)(in_raw_data*100)/100;,v
+integer_digit ,v
+        int integer_digit = ,V
+		in_raw_data = sum_in / 100;		out_raw_data = sum_out /100;,V
+  s_thermal_in_sensing,v
+ in_tobekilled,v
+        sum_in = (sum_in - in_tobekilled) +  s_thermal_in_sensing,V
+static static ,7
+int in_tobekilled =0;,V
+		i		i,9
+		int sum_in = 0;		int sum_out =0;,V
+//e-2,v
+//e-1,v
+intintintintintint,3
+int in_offset = 756,out_offset = -1549;int train_min_in=1131086;//e-2int train_min_out=36389;//e-1int train_max_in=1363624;//e-2int train_max_out=1716462;//e-2int in_raw_data, out_raw_data;signed int in_sqr  ,in  ,out_cube , out_sqr  , out ; signed int dgr_fract,dgr_int,data_in100,data_out100;,V
+#endif,V
+signed int mse_param[6]={         468, // in**2 e-3        -8, // in   e-2       -265, // out**3 e-1        563, // out**2 e-1       -55577, // out e-3        4017};// const e-2,V
+int in_offset = 756,out_offset = -1549;int train_min_in=1131086;//e-2int train_min_out=36389;//e-1int train_max_in=1363624;//e-2int train_max_out=1716462;//e-2int in_raw_data, out_raw_data;signed int in_sqr  ,in  ,out_cube , out_sqr  , out ; signed int dgr_fract,dgr_int,data_in100,data_out100;signed int mse_param[6]={         468, // in**2 e-3        -8, // in   e-2       -265, // out**3 e-1        563, // out**2 e-1       -55577, // out e-3        4017};// const e-2,V
+#ifndef USE_FPU,V
+        //EMBARC_PRINTF("negative :  %d\n",mse_param[4]*100);,V
+        //EMBARC_PRINTF("data_in100:  %d\n",data_in100);,V
+        //EMBARC_PRINTF("data_out100:  %d\n",data_out100);,V
+int in_raw_data, out_raw_data;,V
+int min_in=10986;int max_in=11840;,V
+int in_offset = 756,out_offset = -1549;,V
+int train_min_in=1131086;//e-2int train_min_out=36389;//e-1int train_max_in=1363624;//e-2int train_max_out=1716462;//e-2,V
+#ifndef USE_FPUsigned int in_sqr  ,in  ,out_cube , out_sqr  , out ; signed int dgr_fract,dgr_int,data_in100,data_out100;signed int mse_param[6]={         468, // in**2 e-3        -8, // in   e-2       -265, // out**3 e-1        563, // out**2 e-1       -55577, // out e-3        4017};// const e-2#endif,V
+float p[42];,V
+int volatile key = 0;,V
+*/,V
+/*  original reference ,V
+/*        int train_min_in=1131086;//e-2        int train_max_in=1363624;//e-2        int train_min_out=36389;//e-1        int train_max_out=1716462;//e-2                int mse_param[6]={         468.27281, // in**2 e-3        -8, // in   e-2       -265, // out**3 e-1        563, // out**2 e-1       -55577, // out e-3        4017};// const e-2*/,V
+in_sqr,in,out_cube,out_sqr,out,mse_param[5],v
+in_sqr: %d\nin:%d\nout_cube:%d\nout_sqr:%d\nout:%d\nscalar:%d\n,v
+        EMBARC_PRINTF("in_sqr: %d\nin:%d\nout_cube:%d\nout_sqr:%d\nout:%d\nscalar:%d\n",in_sqr,in,out_cube,out_sqr,out,mse_param[5]);,V
+0,v
+.,v
+27281,v
+        ,v
+        int mse_param[6]={         468.27281, // in**2 e-3        -8, // in   e-2       -265, // out**3 e-1        563, // out**2 e-1       -55577, // out e-3        4017};// const e-2,V
+		est_temp = ((est_temp_tmp + est_temp)*10 + 575)/10  +1;,V
+        ,V
+		est_temp_tmp=0;		est_temp_tmp= ((s_thermal_out_sensing*s_thermal_out_sensing/1000)*8176)/10000000;		est_temp = (s_thermal_out_sensing*-118)/10000;		est_temp = ((est_temp_tmp + est_temp)*10 + 575)/10  +1;,V
+161024,v
+,,v
+85716,v
+2411059,v
+9328155,v
+968967,v
+ ,v
+a,v
+1352572 ,v
+s_thermal_out_sensing,v
+        data_out100 = (s_thermal_out_sensing*100 - train_min_out*10)*100/1352572 ,V
+        int train_min_out=36389;//e-1,V
+int train_min_in=1131086;//e-2int train_min_out=36389;//e-1int train_max_in=1363624;//e-2int train_max_out=1716462;//e-2int mse_param[6]={         0.46827281, // in**2        -0.07968967, // in       -26.49328155, // out**3        56.32411059, // out**2       -55.57685716, // out        40.17161024};// const,V
+int train_min_in=1131086;//e-2int train_min_out=36389;//e-1int train_max_in=1363624;//e-2int train_max_out=1716462;//e-2int mse_param[6]={         0.46827281, // in**2        -0.07968967, // in       -26.49328155, // out**3        56.32411059, // out**2       -55.57685716, // out        40.17161024};// const,V
+],v
+int ,v
+array([[,v
+[[[[[,1
+]]]]],1
+),v
+ ] ]],v
+int train_max_in=1363624;,V
+1131086,v
+int train_min_in=1131086;//e-2,V
+11840,v
+ max_in,v
+10986,v
+ min_in,v
+	//port_output-> gpio_write(PATTERN_EXCEL[count]<<PMOD_OFFSET0, MASK_GPIO0);	,V
+	/*	if(count>=5){		port_output-> gpio_write(PATTERN[count-5]<<PMOD_OFFSET0, MASK_GPIO0);		}	else{		switch(count){							case 0  :port_output-> gpio_write(0x2011<<PMOD_OFFSET0,MASK_GPIO0); port_input-> gpio_write(0x1000<<PMOD_OFFSET1,MASK_GPIO1);break;			case 1  :port_output-> gpio_write(0x2000<<PMOD_OFFSET0,MASK_GPIO0); port_input-> gpio_write(0x0000<<PMOD_OFFSET1,MASK_GPIO1);break;			case 2  :port_output-> gpio_write(0x2010<<PMOD_OFFSET0,MASK_GPIO0); port_input-> gpio_write(0x0000<<PMOD_OFFSET1,MASK_GPIO1);break;			case 3  :port_output-> gpio_write(0x2000<<PMOD_OFFSET0,MASK_GPIO0); port_input-> gpio_write(0x0000<<PMOD_OFFSET1,MASK_GPIO1);break;			case 4  :port_output-> gpio_write(0x2011<<PMOD_OFFSET0,MASK_GPIO0); port_input-> gpio_write(0x1000<<PMOD_OFFSET1,MASK_GPIO1);break;		}	}			*/,V
+		//est_temp =(float) s_thermal_out_sensing* (float)s_thermal_in_sensing*param[0];		//		  (float) s_thermal_out_sensing*param[1]+		//		  (float) s_thermal_out_sensing;					/* Reference		//float param[3]={0.000000817605993 , -0.0118105310 ,  57.4953461};		//float est_temp;		//int param[3]={8.176e-7, -1.18e-2,  57.5};		//int est_temp; */,V
+40.log,V
+39.log,V
+31.5.log,V
+30.5.log,V
+29.5.log,V
+28.5.log,V
+27.5.log,V
+26.5.log,V
+25.5.log,V
+24.5.log,V

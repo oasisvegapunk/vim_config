@@ -1,0 +1,6 @@
+#! /usr/bin/env python3
+import subprocess
+p = subprocess.run('date', shell=True, stdout = subprocess.PIPE)
+
+
+print('The standard out from PIPE', p.stdout)

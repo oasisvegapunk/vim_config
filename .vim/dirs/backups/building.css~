@@ -1,0 +1,60 @@
+/*
+* {
+border: 1px solid blue;
+}
+*/
+* {
+    font-family: Arial, Verdana, sans-serif;
+    color: #665544;
+    text-align: center;
+}
+
+div#plant-adiantum,#plant-asplenium,#plant-anthurium{
+    float:left;
+    margin:1%;
+    width:31.3%;
+}
+@media screan and (max-width:1000px){
+    aside:{width:80%;}
+    div#plant-asplenium{
+        float:none;
+        width:80%;
+        margin:10px;
+    }
+    div#plant-adiantum{
+        float:none;
+        width:80%;
+        margin:10px;
+    }
+    div#plant-anthurium{
+        float:none;
+        width:80%;
+        margin:10px;
+    }
+    nav li{
+        float:none;
+    }
+}
+
+p {
+    column-count:1;
+    column-rule: 2px;   
+}
+
+nav{
+    color:rgb(200,200,200);
+    margin: -2.5em 0 0 0;
+
+}
+nav ul{
+    width: 30em;
+    float: right;
+}
+nav li{
+    float:left;
+    list-style-type:none;
+    margin: 2px 5px;
+}
+article {
+    clear:both;
+}

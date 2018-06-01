@@ -1,0 +1,68 @@
+from collections import deque
+import random
+import numpy as np
+rand_num = random.randint(0,99999)
+random.seed(a=rand_num)
+
+def find_path_dfs(maze):
+    start, goal = (1, 1), (13, 13)
+    stack = deque([start])
+    visited = set()
+    path = list()
+    
+    while stack:
+        current = stack.pop()
+        if current == goal:
+            return path
+        if current in visited:
+            continue
+        visited.add(current)
+        row = current[0]
+        col = current[1]
+
+        if((maze[row][col+1] == 0) and  not((row,col+1) in visited)):
+            stack.append((row,col+1))
+        elif ((maze[row+1][col] == 0) and not((row+1,col) in visited)):
+            stack.append((row+1,col))
+        elif ((maze[row][col-1]==0) and not((row,col-1) in visited)):
+            stack.append((row,col-1))
+        elif ((maze[row-1][col] == 0) and not((row-1,col) in visited)):
+            stack.append((row-1,col))
+        else:
+            continue
+        
+    return "NO WAY!"
+
+
+def wall_gen(maze):
+    height = len(maze)
+    width = len(maze[0]) if height else 0
+    for r_i, row in enumerate(maze):
+        if(r_i == 0 or r_i == height-1):
+            maze[r_i] = np.ones_like(row)
+        for c_i,col in enumerate(row):
+            if(c_i==0 or c_i == width-1):
+                maze[r_i][c_i] = 1
+                continue
+
+    return maze
+
+graph_size = 15
+maze = np.random.randint(2,size=(graph_size,graph_size))
+
+built_maze = wall_gen(maze)
+built_maze[1][1] = 0
+built_maze[graph_size-2][graph_size-2]=0
+
+
+for i in range(13):
+    built_maze[1][i] = 0
+for i in range(13):
+    built_maze[i][13] = 0
+
+for i in built_maze:
+    print(i)
+
+path = find_path_dfs(built_maze)
+print(path)
+

@@ -1,0 +1,5 @@
+set-option -g mouse on
+
+# change the split-window 
+bind-key v split-window -h
+bind-key h split-window -v

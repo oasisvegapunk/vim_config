@@ -1,0 +1,50 @@
+#! /usr/bin/env python3
+
+
+# create class with type
+def my_func(self):
+    """do some stuff"""
+    pass
+
+A_name = "A"
+A_parents = (object,)
+A_methods = {'my_func':my_func}
+
+A = type(A_name,A_parents,A_methods)
+
+
+def make_class(name, parents, methods):
+    """Create a new class and prefix its method's docstrings to 
+    include the class name"""
+    for f in methods:
+        methods[f].__doc__ = "%s: %s" % (name, methods[f].__doc__)
+    cls = type(name, parents, methods)
+    return cls
+
+A = make_class('A', (object,), {"my_func":my_func})
+print(A().my_func.__doc__)
+B = make_class('B', (A,), {"my_func":my_func})
+print(B().my_func.__doc__)
+
+# create function on the fly
+
+def copy_function(f):
+    """Create a new function in memory that is a duplicate of 'f'  """
+    func_type = type(f)
+    new_func = func_type(
+            f.func_code, #bytecode
+            f.func_globals, # global namescape
+            f.func_name,# function name
+            f.func_defualts,#default keyword argument
+            f.func_closure # closure variable
+            )
+    new_func.__doc__ = f.__doc__
+    return new_func
+ 
+my_new_func = copy_function(my_func)
+my_new_func.__doc__ = "Modified: %s" % my_func.__doc__
+
+print(my_func.__doc__)
+print(my_new_func.__doc__)
+
+

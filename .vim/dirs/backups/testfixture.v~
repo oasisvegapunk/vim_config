@@ -1,0 +1,104 @@
+`timescale 1ns/10ps
+`define CYCLE  10.00      // Modify your clock period here
+//`define INFILE "INa.DAT"  // Make sure to test another pattern (INb.DAT)
+`define INFILE "./IN.DAT"  
+
+module test;
+parameter INPUT_DATA = `INFILE;
+reg RESET_;
+reg CLK;
+wire [7:0] Yc, Xc;
+reg ready;
+
+integer i, j, k, out_f, err, pattern_num;
+integer a, b, c, d;
+reg [39:0] N_PAT;
+reg [7:0] Xi, Yi;
+reg [3:0] Wi;
+//reg [39:0]  data_base [0:20000];
+reg [39:0]  data_base [20000:0];
+reg [39:0]  data_tmp, data_tmp1;
+
+
+GCC top (.READY_(READY_), .Xc(Xc), .Yc(Yc), .Xi(Xi), .Yi(Yi), .Wi(Wi),
+         .RESET_(RESET_), .CLK(CLK)); 
+
+
+initial	$readmemh( INPUT_DATA,  data_base);
+
+
+initial begin
+   RESET_ = 1'b1;
+   CLK = 1'b1;
+   j = 0;
+   k = 0;
+   err = 0;
+   a = 0;
+   b = 0;
+   c = 0;
+   d = 0;
+   pattern_num = 1; 
+   ready = 0; 
+end
+
+/*initial begin
+$fsdbDumpfile("gcc.fsdb");
+$fsdbDumpvars;
+$dumpfile("GCC.vcd");
+$dumpvars;
+end*/
+
+initial begin
+   out_f = $fopen("OUT.DAT");
+   if (out_f == 0) begin
+        $display("Output file open error !");
+        $finish;
+   end
+end
+
+always begin #(`CYCLE/2) CLK = ~CLK;
+end
+
+initial begin
+   @(negedge CLK);
+   #1;          RESET_ = 1'b0;
+   $display ("\n******START to VERIFY GCC OPERATION ******\n");
+   @(negedge CLK);
+   #1;          RESET_ = 1'b1;
+   N_PAT = data_base[0] ; 
+   for  (i = 1; i <= N_PAT; i = i + 1) begin
+      #(`CYCLE*0.25)  data_tmp = data_base[i] ;
+            Xi = data_tmp[39:32];
+            Yi = data_tmp[31:24];
+            Wi = data_tmp[19:16];
+      @(negedge CLK);
+   end 
+end  
+
+ 		
+always @ (posedge CLK) begin
+   if (!READY_) begin
+     data_tmp1 = data_base[pattern_num]; 
+       //$fdisplay(out_f,"%h_%h",Xc, Yc); 
+       $fdisplay(out_f,"%h_%h",Xc, Yc); 
+     if ((Xc !== data_tmp1[15:8]) || (Yc !== data_tmp1[7:0])) begin
+         $display("ERROR at %d:output (%d, %d)!=expect (%d, %d)",pattern_num,  Xc, Yc, data_tmp1[15:8], data_tmp1[7:0]);
+       err = err + 1 ;   
+     end
+       pattern_num = pattern_num + 1 ; 
+   end
+   if (pattern_num == N_PAT)
+    ready = 1 ;
+end  
+
+initial begin
+      @(posedge ready)
+      $display("---------------------------------------------");
+      if (err == 0)
+         $display("All data have been generated successfully!");
+      else 
+         $display("There are %d errors!", err);
+      $display("---------------------------------------------");
+      $finish;
+   end
+endmodule

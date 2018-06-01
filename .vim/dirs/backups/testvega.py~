@@ -1,0 +1,116 @@
+import json
+from urllib.parse import quote
+
+from config import gitlab
+
+
+def real_url(filepath):
+    return "https://localhost:3019/mission_vega/%s" % (
+        quote(filepath),
+    )
+
+data = [{
+    'token': 'UserToken',
+    'mission': json.dumps({
+        'return': {
+            'url': 'http://localhost',
+        },
+        'prepare': {
+            'file': {
+                'main.cpp': real_url('submission/1/main.cpp'),
+                'verdict.cpp': real_url('verdict/verdict.cpp')
+            },
+            'execute': [{
+                'command': [
+                    'g++',
+                    '-std=c++11',
+                    '-O2',
+                    'main.cpp',
+                    '-o',
+                    'a.out',
+                ],
+                'memory_limit': 2097152,
+                'stdout': 'stdout.txt',
+                'stderr': 'stderr.txt',
+            }, {
+                'command': [
+                    'g++',
+                    '-std=c++11',
+                    '-O2',
+                    'verdict.cpp',
+                    '-o',
+                    'verdict',
+                ],
+                'memory_limit': 2097152,
+                'stdout': 'stdout.txt',
+                'stderr': 'stderr.txt',
+            }],
+        },
+        'tasks': {
+            'task': [{
+                'file': {
+                    '__TASK_ID__.in': real_url('testdata/1/1.in'),
+                    '__TASK_ID__.out': real_url('testdata/1/1.out'),
+                },
+                'macro': {
+                    '__TIME_LIMIT__': 1000,
+                }
+            }, {
+                'file': {
+                    '1.in': real_url('testdata/2/2.in'),
+                    '1.out': real_url('testdata/2/2.out'),
+                },
+                'macro': {
+                    '__TIME_LIMIT__': 500,
+                }
+            }],
+            'execute': [{
+                'command': [
+                    './a.out',
+                ],
+                'stdin': '__TASK_ID__.in',
+                'stdout': '__TASK_ID__.user_out',
+                'scope': {
+                    'enable': True,
+                    'import': [
+                        'a.out',
+                        '__TASK_ID__.in',
+                    ],
+                    'export': [
+                        '__TASK_ID__.user_out',
+                        '__TASK_ID__.meta',
+                    ],
+                },
+                'meta': '__TASK_ID__.meta',
+                'record': {
+                    'enable': True,
+                    'stdout': 1024,
+                    'stderr': 1024,
+                },
+                'time_limit': '__TIME_LIMIT__',
+            }, {
+                'command': [
+                    './verdict', '__TASK_ID__.user_out', '__TASK_ID__.out'
+                ],
+                'stdout': 'verdict_result',
+                'record': {
+                    'enable': True,
+                    'stdout': 1024,
+                    'stderr': 1024,
+                }
+            }, {
+                'command': [
+                    'cat', '__TASK_ID__.meta',
+                ],
+            }, {
+                'command': [
+                    'cat', 'mission',
+                ]
+            }, {
+                'command': [
+                    'cat', 'mission_result',
+                ]
+            }]
+        },
+    })
+}]

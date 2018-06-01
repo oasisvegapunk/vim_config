@@ -1,0 +1,108 @@
+#! /usr/bin/env python3
+
+class MyClass(object):
+    def __init__(self):
+        self.x = 5
+
+    def add(self):
+        self.x += 1
+
+mc = MyClass()
+print(type(mc))
+
+print("type(MyClass) is ", type(MyClass))
+print("type(type(5) is ", type(type(5)))
+
+
+# using type to create class
+print("Using type to create class and object")
+def __init__(self):
+    self.x_in_newclass = 5
+def add(self):
+    self.x_in_newclass += 1
+
+NewClass = type("NewClass",(), {"__init__":__init__, "add": add})
+            #    name      base   dict(attribute dictionary)
+nc = NewClass()
+print(nc.x_in_newclass)
+nc.add()
+print("After nc.add()", nc.x_in_newclass)
+
+#2 create new metaclass
+print("using metaclass to create class and object")
+
+class NewType(type):
+    def __new__(cls, name, bases, attrs):
+        print("{} was created ".format(name))
+        return super(NewType, cls).__new__(cls, name, bases, attrs)
+
+NewClass2 = NewType("NewClass2", (), {"__init__": __init__, "add": add})
+
+nc2 = NewClass2()
+print(nc2.x_in_newclass)
+nc2.add()
+print("After nc2.add()", nc2.x_in_newclass)
+
+
+#3 using class method and put the metaclass inside
+class MyClass_using_Meta(object):
+    __metaclass__ = NewType
+    def __init__(self):
+        self.x_in_newclass = 5
+    def add(self):
+        self.x_in_newclass += 1
+
+nc3 = MyClass_using_Meta()
+print(nc3.x_in_newclass)
+nc2.add()
+print("After nc3.add()", nc3.x_in_newclass)
+
+
+
+
+class LogginMeta(type):
+    def __new__(cls, name, bases, attrs):
+        logstash_parms ={}
+        for item, attr_val in attr.items():
+            if isinstance(attr_val, type.FunctionType):
+                attrs[item] = log_wrapper(attr_val) #using wrapper to do the decorating
+            elif isinstance(attr_val, classmethod):
+                attrs[item] = classmethod(log_wrapper(attr_val.__get__(object).__func__)) # take the attr_val function object pass to the wrapper
+            elif item.startwith("_logstash"):
+                logstash_parms[item] = attr_val
+        if logstash_parms:
+            init)logger(**logstash_parms)
+        return super(LogginMeta, cls).__new__(cls, name, bases, attrs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

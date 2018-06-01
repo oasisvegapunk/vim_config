@@ -1,0 +1,36 @@
+module FP_Mul(ae, am, be, bm, ce, cm ,ovf);
+    parameter e =3;// number of bit of exponential
+    input [e-1] ae, be;
+    input [3:0] am, bm;// input mantissas
+    output [e-1:0] ce ; // result exponential
+    output [3:0] cm; // output mantissas
+    output ovf;// overflow indicator
+
+
+    wire [7:0] pm; // initial multiply result
+    wire [3:0] sm;// after shift
+    wire [4:0] xm;// after increment
+    wire rnd ;// rounding indicator
+    wire [1:0] oe;// exponential overflow indicator
+
+
+    assign pm = am * bm;
+
+    assign sm = pm[7]? pm[7:4] : pm[6:3]; // since first bit of mantissas must be 1
+    assign rnd = pm[7]? pm[3] : pm[2]; // select the rounding bit 
+
+    // increment
+    assign xm = sm + rnd;
+
+    // Final mantissas
+    
+    assign cm = xm[4] ? xm[4:1] : xm[3:0];
+
+    // Final exponential
+    assign {oe,ce} = ae + be  +(pm[7] | xm[4]) - 1;
+    // -1 because if MSB is zero, we shift left the mantissas, so decrease the exponential
+    // else nothing happen then cancel the -1 
+    assign ovf = | oe;
+
+    
+endmodule

@@ -1,0 +1,7 @@
+ sudo su postgres -c env psql -c "DROP DATABASE IF EXISTS testpython
+ sudo su postgres -c env psql -c "DROP USER IF EXISTS willvegapunk
+ env echo initializing database...
+ sudo su postgres -c env psql -c "CREATE USER willvegapunk
+ sudo su postgres -c env psql -c "CREATE DATABASE testpython
+ sudo su postgres -c env psql -c "ALTER USER willvegapunk WITH PASSWORD ${DBPASSWORD}
+ sudo su postgres -c env psql -c "ALTER DATABASE testpython OWNER TO willvegapunk"

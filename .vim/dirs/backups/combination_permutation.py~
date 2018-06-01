@@ -1,0 +1,55 @@
+#! /usr/bin/env python3
+
+import itertools
+
+my_list = [1, 2, 3]
+
+# order not matter
+
+combination1 = itertools.combinations(my_list,3)
+combination2 = itertools.combinations(my_list,2)
+
+print("Combination of 2 memeber from 3")
+for c in combination2:
+    print(c)
+
+
+
+print("Permutation of 2 memeber from 3")
+permutations = itertools.permutations(my_list,2)
+
+for p in permutations:
+    print(p)
+
+
+
+my_list2 = [1,2,3,4,5,6]
+combinations = itertools.combinations(my_list2,3)
+permutations= itertools.permutations(my_list2,3)
+
+
+print("Permutation of 3 member out of 6 with summation equal 10:")
+print( [result for result in permutations if sum(result)==10] )
+print("Combination of 3 member out of 6 with summation equal 10:")
+print( [result for result in combinations if sum(result)==10] )
+
+
+
+
+
+print( 'word matching game' )
+word = 'sample'
+my_letters = 'plmeas'
+
+combinations = itertools.combinations(my_letters,6)
+permutations= itertools.permutations(my_letters,6)
+
+
+for p in permutations:
+    if ''.join(p) == word:
+        print('Match!')
+        break
+else:
+    print('Not Match !')
+
+

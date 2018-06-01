@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# grep [options] patterns [FILES]
+
+#options
+# -c 不印出吻合的那一行只印出吻合樣本的行數
+# -h 輸出的結果不顯示檔案名稱
+# -i 忽略大小寫
+# -l 只列出檔案名稱，不要輸出吻合字串的那一行
+# -v 反向比對，指印出不符合的樣本
+
+echo "---------- grep def[[:blank:]] ./grep_testdata.txt ---------"
+
+grep def[[:blank:]] ./grep_testdata.txt
+
+echo "------------------------------------------------------------"
+
+echo "----------  grep [a-z_]\{4\} grep_testdata.txt---------"
+grep -E [a-z[:blank:]]\{4\} grep_testdata.txt

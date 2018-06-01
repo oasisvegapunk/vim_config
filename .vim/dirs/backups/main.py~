@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+import fnmatch
+import importlib
+import json
+import os
+import subprocess as sp
+import sys
+
+import requests
+
+import config
+
+ERROR_COUNT = 0
+
+DataType = {
+    "name": str,
+    "url": str,
+    "method": str,
+    "payload": dict,
+    "response_status": int,
+    "response_data": dict,
+}
+
+ignore_list = ["created_at", "updated_at"]
+
+
+def Equal(data1, data2, ignore, ignore_but_exist):
+    if type(data1) != type(data2):
+        return False
+    if isinstance(data1, list):
+        if len(data1) != len(data2):
+            return False
+        for x in range(len(data1)):
+            if not Equal(data1[x], data2[x], ignore, ignore_but_exist):
+                return False
+        return True
+    elif isinstance(data1, dict):
+        cp_data1 = data1.copy()
+        cp_data2 = data2.copy()
+        for x in (ignore):
+            if x in cp_data1:
+                cp_data1.pop(x)
+            if x in cp_data2:
+                cp_data2.pop(x)
+        for x in ignore_but_exist:
+            if x in cp_data1 and x in cp_data2:
+                cp_data1.pop(x)
+                cp_data2.pop(x)
+            if x not in cp_data1 and x in cp_data2:
+                return False
+            if x not in cp_data2 and x in cp_data1:
+                return False
+        if len(cp_data1) != len(cp_data2):
+            return False
+        for x in cp_data1:
+            if x not in cp_data2:
+                return False
+            if not Equal(cp_data1[x], cp_data2[x], ignore, ignore_but_exist):
+                return False
+        return True
+    else:
+        return data1 == data2
+
+
+def test_py(filename):
+    global ERROR_COUNT
+    print("Test file: %s" % (filename))
+    if(filename[:2] == './'):
+        filename = filename[2:]
+    filepath = filename[:-3].replace("/", ".")
+    package = importlib.import_module(filepath)
+    if not hasattr(package, "data"):
+        print("Error: Can't find 'data' in the %s" % filename)
+        ERROR_COUNT += 1
+        return
+    datalist = getattr(package, "data")
+    if not isinstance(datalist, list):
+        print("Error: Json is not a list")
+        ERROR_COUNT += 1
+        return
+    for data in datalist:
+        if not isinstance(data, dict):
+            print("Error: %s is not dict" % (data))
+            ERROR_COUNT += 1
+            return
+        for x in DataType:
+            if x not in data:
+                print("Error: lack %s in %s" % (x, data))
+                ERROR_COUNT += 1
+                return
+        print("%s: " % (data['name']))
+        data['url'] = config.base_url + data['url']
+        try:
+            func = getattr(requests, data["method"])
+        except:
+            print("Error: No Such Method %s" % (data['method']))
+            ERROR_COUNT += 1
+            return
+        other_args = {}
+        if 'cookies' in data and data['cookies']:
+            other_args['cookies'] = test_py.cookies
+        if data['method'] == "get":
+            response = func(data['url'], params=data['payload'], **other_args)
+        else:
+            files = {}
+            if 'files' in data:
+                if isinstance(data['files'], dict):
+                    for name, path in data['files'].items():
+                        try:
+                            files[name] = open(path, "rb")
+                        except:
+                            print("file: %s path: %s not found(ignored)" %
+                                  (name, path))
+                            ERROR_COUNT += 1
+                else:
+                    print("Error: files is not dict(ignored)")
+                    ERROR_COUNT += 1
+            # For Debug
+            print('Debug:', json.dumps(data['payload']))
+
+
+            response = func(data['url'], data=json.dumps(data['payload']),
+                            files=files, **other_args)
+        if 'cookies' in data and data['cookies']:
+            test_py.cookies = response.cookies
+        try:
+            if 'json' not in data or data['json']:
+                is_json = True
+                response_json = json.loads(response.text)
+            else:
+                is_json = False
+                response_json = response.content
+        except:
+            print("Error: Response Json Parse Error %s" % (response.text))
+            ERROR_COUNT += 1
+            return
+        ignore = ignore_list.copy()
+        ignore_but_exist = []
+        if 'ignore' in data:
+            ignore += data['ignore']
+        if 'ignore_but_exist' in data:
+            ignore_but_exist += data['ignore_but_exist']
+        if response.status_code != data['response_status'] or \
+                not Equal(
+                    response_json,
+                    data['response_data'],
+                    ignore,
+                    ignore_but_exist
+        ):
+            print("Error: Unexpect Response")
+            print("Expect: [%s] %s" % (data['response_status'], json.dumps(
+                data['response_data'], indent=4, sort_keys=True
+            ) if is_json else data['response_data']))
+            print("Response: [%s] %s" % (response.status_code, json.dumps(
+                response_json, indent=4, sort_keys=True
+            ) if is_json else response_json))
+            ERROR_COUNT += 1
+    print('\n')
+
+
+test_py.cookies = None
+
+
+def flushdb():
+    sp.call(["./flush_db.sh"], cwd="./../scripts",
+            stdout=sp.DEVNULL, stderr=sp.DEVNULL)
+
+
+if __name__ == '__main__':
+    files = []
+    if len(sys.argv) == 1:
+        for root, dirnames, filenames in os.walk("./api/"):
+            for filename in fnmatch.filter(filenames, '*.py'):
+                files.append(os.path.join(root, filename))
+    else:
+        for arg in sys.argv[1:]:
+            if arg[-3:] == '.py':
+                files.append(arg)
+                continue
+            for root, dirnames, filenames in os.walk(arg):
+                for filename in fnmatch.filter(filenames, '*.py'):
+                    files.append(os.path.join(root, filename))
+
+    print(files)
+
+    for filename in files:
+        flushdb()
+        test_py(filename)
+    sys.exit(ERROR_COUNT)

@@ -1,0 +1,102 @@
+`timescale 1ns/10ps
+//synopsys translate_off
+//`include "/cad/synopsys/synthesis/cur/dw/dw02/src_ver/DW_div.v"
+//`include "/cad/synopsys/synthesis/cur/dw/dw02/src_ver/DW02_mac.v"
+//`include "/cad/synopsys/synthesis/cur/dw/dw02/src_ver/DW02_mult.v"
+//synopsys translate_on
+/*
+ * IC Contest gravity center calculator (gcc) 
+ */
+module GCC(READY_, Xc, Yc, Xi, Yi, Wi, RESET_, CLK);
+
+input CLK, RESET_; 
+input [7:0] Xi, Yi;
+input [3:0] Wi;
+output reg READY_;
+output reg [7:0] Xc, Yc;
+
+
+reg [7:0] unsign_x_reg[0:5];
+reg [7:0] unsign_y_reg[0:5];
+reg [3:0] unsign_w_reg[0:5];
+wire [13:0] tmpx[1:3];
+wire [13:0] tmpy[1:3];
+
+wire [16:0] accx, accy;
+wire [16:0] indx, indy;
+wire [16:0] accw;
+
+integer index;
+/*  2 levle summation
+
+assign tmpx[1] =  Xi*Wi                           + unsign_x_reg[1]*unsign_w_reg[1];
+assign tmpx[2] =  unsign_x_reg[2]*unsign_w_reg[2] + unsign_x_reg[3]*unsign_w_reg[3];
+assign tmpx[3] =  unsign_x_reg[4]*unsign_w_reg[4] + unsign_x_reg[5]*unsign_w_reg[5];
+
+assign tmpy[1] =  Yi*Wi                           + unsign_y_reg[1]*unsign_w_reg[1];
+assign tmpy[2] =  unsign_y_reg[2]*unsign_w_reg[2] + unsign_y_reg[3]*unsign_w_reg[3];
+assign tmpy[3] =  unsign_y_reg[4]*unsign_w_reg[4] + unsign_y_reg[5]*unsign_w_reg[5];
+
+assign accx = (tmpx[1] + tmpx[2] + tmpx[3]);
+assign accy = (tmpy[1] + tmpy[2] + tmpy[3]);
+//   2X / 6  equivalent to  ((2X)>>2) - (2X)
+assign accx2 = (accx <<1);
+assign accy2 = (accy <<1);
+
+//assign Xc =  (accx2>>2) - (accx2);
+//assign Yc =  (accy2>>2) - (accy2);
+*/
+assign accx = unsign_x_reg[0]*unsign_w_reg[0] + unsign_x_reg[1]*unsign_w_reg[1] +
+              unsign_x_reg[2]*unsign_w_reg[2] + unsign_x_reg[3]*unsign_w_reg[3] +
+              unsign_x_reg[4]*unsign_w_reg[4] + unsign_x_reg[5]*unsign_w_reg[5];
+                                                                 
+assign accy = unsign_y_reg[0]*unsign_w_reg[0] + unsign_y_reg[1]*unsign_w_reg[1] +
+              unsign_y_reg[2]*unsign_w_reg[2] + unsign_y_reg[3]*unsign_w_reg[3] +
+              unsign_y_reg[4]*unsign_w_reg[4] + unsign_y_reg[5]*unsign_w_reg[5] ;
+
+assign accw = unsign_w_reg[1] + unsign_w_reg[2] + unsign_w_reg[3] + unsign_w_reg[4] + unsign_w_reg[5] + unsign_w_reg[0] ;
+
+assign indx =  (accx*2)/accw;
+assign indy =  (accy*2)/accw;
+always@(negedge CLK )begin
+    Xc[7:0]=  (indx[0]) ? (indx[16:1] + 'b1) : (indx[16:1]);
+    Yc[7:0] = (indy[0]) ? (indy[16:1] + 'b1) : (indy[16:1]);
+end
+
+// -------------------------------------------------
+always@(posedge CLK or negedge RESET_)begin
+    if (~RESET_)begin
+        READY_ <= 'b1;
+    end
+    else begin
+        READY_ <= 'b0;
+    end
+end
+
+
+
+always@(posedge CLK or negedge RESET_)begin
+    if(~RESET_)begin
+        for(index = 0 ; index <= 5; index= index+1)begin
+            unsign_x_reg[index] <= 'b0;
+            unsign_y_reg[index] <= 'b0;
+            unsign_w_reg[index] <= 'b0;
+        end
+    end
+
+    else begin
+            unsign_x_reg[1] <= Xi;
+            unsign_y_reg[1] <= Yi;
+            unsign_w_reg[1] <= Wi;
+
+        for(index = 1 ; index <= 5; index= index +1)begin
+            unsign_x_reg[index] <= unsign_x_reg[index-1];
+            unsign_y_reg[index] <= unsign_y_reg[index-1];
+            unsign_w_reg[index] <= unsign_w_reg[index-1];
+        end
+        
+    end
+end
+
+ 
+endmodule

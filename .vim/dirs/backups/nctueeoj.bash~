@@ -1,0 +1,4 @@
+#! /bin/bash 
+echo 'ps: helloworld'
+ssh qewz@140.113.123.226
+

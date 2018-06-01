@@ -1,0 +1,12 @@
+import os
+import PyPDF2
+
+def append_pdf(input, output):
+    [output.addPage(input.getPage(page_Num)) for page_Num in range(input.numPages)]
+
+output = PyPDF2.PdfFileWriter()
+
+append_pdf(PyPDF2.PdfFileReader(open("front_matter.pdf", "rb")), output)
+for i in range(1,9):
+    append_pdf(PyPDF2.PdfFileReader(open("book_"+str(i)+".pdf", "rb")), output)
+

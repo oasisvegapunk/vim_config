@@ -1,0 +1,41 @@
+module FP_add(ae, am, be, bm, ce, cm, ovf);
+parameter e =3;
+parameter m =5;
+
+input [e-1:0] ae, be;// input exponent
+input [m-1:0] ae, be;// input mantissas
+output [e-1:0] ce;// result exponent
+output [m-1:0] cm;// result mantissas
+output ovf; // overflow indicator
+
+wire [e-1:0] ge, le, de, sc;
+wire [m-1:0] gm, lm, alm, nm;
+wire rnd;
+
+wire agtb = (ae >= be); // a greater than b
+assign ge = agtb ? ae : be; // greater exponent
+assign le = agtb ? be : ae; // smaller exponent
+assign de = ge - le; // difference exponent
+
+
+assign gm = agtb ? am : bm; // greater mantissas
+assign lm = agtb ? bm : am; // smaller mantissas
+
+
+// alignment
+
+assign alm = lm >> de;// align smaller mantissas to fit greater
+
+wire [m:0] sm = gm + alm;
+
+// find first one from MSB in sm
+sc // shift count
+
+assign {nm,rnd} = sm << sc;
+assign {ovf,ce} = ge - sc +1;// +1 is for  sm is m+1 bit
+
+// round result
+assign cm = nm + rnd;
+
+
+endmodule

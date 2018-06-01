@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Vega's Home</title>
+        <link rel="icon" href="favicon.ico" type="image/x-icon">
+        <link rel="stylesheet" type="text/css" href="Vega.css">
+    </head>
+    <body>
+        <header id="home">
+            <h1>Vega's Personal Website</h1>
+        </header> 
+        <nav>
+            HW1 | 
+            <a href="http://www.google.com/" target="_blank">Google</a>
+            | <a href="#DemoVideo">DemoVideo</a> | <a href="#Learning Experience">Learning Experience</a>
+        </nav>
+        <article>
+            <!-- 段落 -->
+            <div id="album">
+                <!--    <img src="tuffle.png" width="200" alt="鬆餅的大頭照" title="鬆餅">  -->
+                <img src="myphoto.jpg" width="200" alt="我的大頭照" title="vega">
+
+            </div>
+            <div> <!-- <div style="background-color:powderblue; width:846px"> -->
+                <dl>
+                    <dt style="font-weight:bold">My Info
+                        <dd>Name: 劉力瑋 </dd>
+                        <dd>學號: 0310168</dd>
+                    </dt>
+                    
+                </dl>
+            </div>
+
+            <div id="MyGithub">
+                <a href="https://github.com/willtuna" >
+                        <img src="github_icon.png" width="30"/>
+                        <strong>My Github 
+                </a>
+            </div>
+            <div>
+                <a href="PYTHON_COOKBOOK.pdf">
+                    My_HW
+                </a>
+            </div>
+
+
+            <h3 id="Learning_Experience">Learning Experience</h3>
+                <ul >
+                    <dd style="font-size:20px"><img src="image/if_star.png" width="20px">  html    </dd>  
+                    <dd style="font-size:20px"><img src="image/if_star.png" width="20px">  Verilog </dd>
+                    <dd style="font-size:20px"><img src="image/if_star.png" width="20px">  Python  </dd>
+                </ul>
+            <h3 id="DemoVideo">DemoVideo</h3>
+            <div id="Video">
+                <video width="640" height="480" controls="controls">
+                <source src="CNN_Vega_Con3Max1Rect_lp_test.mp4" type="video/mp4">
+                    Your Browser Not Support HTML5 video functionality !
+                </video>
+            </div>
+            <a href="#home">Back to Home </a>
+        </article>
+        <footer>
+            <p>&copy CopyWrite Reserved</p>
+            <p>Contact: <a href="mailto:willvegapunk.ee03@g2.nctu.edu.tw">
+                Me </a>
+            </p>
+            <audio id="homepage_music" src="audio2_jp.mp3" controls="controls" autoplay="autoplay">
+                Your Browser not Support HTML5 audio function !
+            </audio>
+
+
+        </footer>
+    </body>
+</html>

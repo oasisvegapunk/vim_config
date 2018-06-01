@@ -1,0 +1,15 @@
+#! /usr/bin/env python3
+
+from bs4 import BeautifulSoup
+import urllib.request
+
+html_doc = urllib.request.urlopen("https://www.google.com").read()
+#html_doc # = html_raw.decode('utf-8')
+soup = BeautifulSoup(html_doc, "html.parser")
+print(soup.prettify())
+# soup.head
+# soup.title
+# soup.find_all(re.compile("^b"))
+# soup.body
+# soup.find_all(re.compile("^b"), id = 'link1')
+# soup.find_all(href = re.compile("^b"), id = 'link1')

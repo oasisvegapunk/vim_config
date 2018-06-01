@@ -1,0 +1,49 @@
+#! /usr/bin/env python3
+import random
+import math
+import itertools
+random.seed(1)
+TESTSIZE = 10000
+
+def input_gen():
+    input_list = [None]*6
+    for i in range(6):
+        input_list[i] = random.randrange(0,10)
+    return input_list
+
+
+def ans_gen(input_list):
+    u1 = input_list[0]
+    u2 = input_list[1]
+    unsorted = input_list[2:]
+    sort_list = sorted(unsorted)
+    min_of_all = 999*999
+    for per in list(itertools.permutations(sort_list,r=None)):
+        candidate = (per[0]*100 + u1*10 + per[1])*(per[2]*100+ u2*10 + per[3])
+        if(candidate < min_of_all ):
+            min_of_all = candidate
+
+    return   min_of_all
+
+#question_file = open("Lab06_question_file_mega.txt",'w')
+#ans_file = open("Lab06_ans_file_mega.txt",'w')
+#question_file.write(str(TESTSIZE)+'\n' )
+#
+#
+#for i in range(TESTSIZE):
+#    intput_l = input_gen()
+#    for value in intput_l:
+#        question_file.write(str(value)+'\n')
+#    ans = ans_gen(intput_l)
+#    ans_file.write(str(ans)+'\n' )
+#
+#question_file.close()
+#ans_file.close
+
+
+#intput_l = input_gen()
+intput_l = [0 , 4 , 0, 9 , 0 ,7]
+for value in intput_l:
+    print(str(value)+'\n')
+ans = ans_gen(intput_l)
+print(ans)

@@ -1,0 +1,26 @@
+#include <sys/types.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+int main() {
+pid_t pid;
+
+//fork a child process
+pid = fork();
+
+    if(pid<0){ //error occurred
+        fprintf(stderr, "fork failed");
+        return 1;
+    }
+    else if(pid == 0){ //child process
+        printf("I am going to be Zombie, if Parent say \"Bye Bye\"\n");
+        sleep(30);
+    }
+    else{ //parent process
+        printf("\nParent Leave : Bye Bye child :%d\n", pid);
+        exit(0);
+    }
+return 0;
+}
+//The call to exec() replaces the address space of the process with the program specified as the parameter to exec(). If the call to exec() succeeds, the new program is now running and control from the call to exec() never returns. In this scenario, the line printf("Line J"); would never be performed. However, if an error occurs in the call to exec(), the function returns control and therefor the line printf("Line J"); would be performed.

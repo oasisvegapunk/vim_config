@@ -1,0 +1,11 @@
+# Intel Corporation I350 Gigabit Network Connection
+DEVICE=eth0
+BOOTPROTO=none
+HWADDR=e4:1f:13:ed:fe:d2
+ONBOOT=yes
+NETMASK=255.255.255.0
+IPADDR=140.113.86.68
+GATEWAY=140.113.86.254
+TYPE=Ethernet
+
+

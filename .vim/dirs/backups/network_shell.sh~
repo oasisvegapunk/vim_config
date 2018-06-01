@@ -1,0 +1,19 @@
+#! /bin/bash
+
+echo "checking ssh connection"
+netstat -a | grep ssh
+if [ $? == 0 ]
+then
+    echo "ssh connection succeed"
+else
+    echo "ssh not connect, manual start service"
+    sudo service service ssh start
+fi
+
+
+sudo apt-get update && sudo apt-get upgrade
+
+
+echo "Checking Linux Version"
+uname -a
+

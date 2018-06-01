@@ -1,0 +1,4 @@
+#! /bin/bash
+echo login:dic07
+echo nctu password
+ssh -X dic07@linux02.ee.nctu.edu.tw

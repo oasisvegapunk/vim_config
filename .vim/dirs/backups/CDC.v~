@@ -1,0 +1,113 @@
+`include "syn_XOR.v"
+
+module CDC(// Input signals
+			clk_1,
+			clk_2,
+			clk_3,
+			invalid,
+			rst_n,
+			recieved_data1,
+			recieved_data2,
+			message,
+			mode,
+		  //  Output signals
+			outvalid,
+			out
+			);
+//---------------------------------------------------------------------
+//   INPUT AND OUTPUT DECLARATION                         
+//---------------------------------------------------------------------			
+input clk_1; 
+input clk_2;
+input clk_3;			
+input rst_n;
+input invalid;
+input[63:0]message;
+input[71:0]recieved_data1;
+input[6:0]recieved_data2;
+input [1:0]mode;
+output reg outvalid;
+output reg [71:0]out; 			
+
+//---------------------------------------------------------------------
+// PARAMETER DECLARATION
+//---------------------------------------------------------------------
+
+
+//---------------------------------------------------------------------
+//   WIRE AND REG DECLARATION                             
+//---------------------------------------------------------------------
+
+//---------------------------------------------------------------------
+//   Finite-State Mechine                                          
+//---------------------------------------------------------------------
+
+
+
+
+//---------------------------------------------------------------------
+//   Data Memory  and synchronizer                                        
+//---------------------------------------------------------------------
+
+
+                     
+//---------------------------------------------------------------------
+//   Design Description                                          
+//---------------------------------------------------------------------		
+
+			
+			
+		
+
+
+
+		
+endmodule
+
+module crc64_8_operation(crc64_8_in,crc_rm_out);
+
+input [71:0] crc64_8_in;
+output reg[7:0] crc_rm_out;
+
+genvar row,col;
+generate
+for(row = 0 ; row < 64 ; row = row + 1)begin:row_layer
+    reg [71:0] layer_in;
+    reg [71:0] layer_out;
+    if(row == 0)begin
+        always(*)begin
+            row_layer[row].layer_in = crc64_8_in;
+        end
+    end
+    else begin
+        always(*)begin
+            row_layer[row].layer_in = row_layer[row-1].layer_out;
+        end
+    end
+    
+    if(row==0)begin
+        always@(*)begin
+            row_layer[row].layer_out[71:63] = (row_layer[row].layer_in[71]) ?
+                                    row_layer[row].layer_in[71:63] ^ 8'b1_1000_1101 : row_layer[row].layer_in[71:63];
+            row_layer[row].layer_out[62:0] = row_layer[row].layer_in[62:0];
+        end
+    end
+    else if(row == 63)begin
+        always@(*)begin
+            row_layer[row].layer_out[71:9] = row_layer[row].layer_in[71:9];
+            row_layer[row].layer_out[8:0] = (row_layer[row].layer_in[8]) ?
+                                    row_layer[row].layer_in[8:0] ^ 8'b1_1000_1101 : row_layer[row].layer_in[8:0];
+        end
+            crc_rm_out  = row_layer[row].layer_out[7:0]
+    end
+    else begin
+        always@(*)begin
+            row_layer[row].layer_out[71:72-row] = row_layer[row].layer_in[71:72-row];
+            row_layer[row].layer_out[71-row:63-row] = (row_layer[row].layer_in[71-row]) ?
+                                    row_layer[row].layer_in[71-row:63-row] ^ 8'b1_1000_1101 : row_layer[row].layer_in[71-row:63-row];
+            row_layer[row].layer_out[62-row:0] = row_layer[row].layer_in[62-row:0];
+        end
+    end
+endgenerate
+
+endmodule

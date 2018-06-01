@@ -1,0 +1,661 @@
+`define PRE_DIR_ADDR 2:1
+`define VISITED_ADDR 0
+
+module MS(
+	rst_n , 
+	clk , 
+	maze ,
+	in_valid ,
+	mode ,
+	out_valid,
+	maze_not_valid,
+	out_x, 
+	out_y
+);
+	input rst_n, clk, maze ,in_valid , mode ;
+	output reg out_valid;
+	output reg maze_not_valid;
+	output reg [3:0]out_x, out_y ;
+// IO parameter
+parameter MAP_SIZE   = 225;
+parameter QUEUE_SIZE = 26;//2*13
+parameter ROW_SIZE = 'd15;
+parameter COL_SIZE = 'd15;
+
+parameter BFS = 1'b1;
+parameter DFS = 1'b0;
+// FSM parameter
+parameter S_IDLE         = 3'd0;
+parameter S_INPUT        = 3'd1;
+parameter S_MAZE_RUNNING = 3'd2;
+parameter S_OUTPUT       = 3'd3;
+
+//remain_right_down_left_up
+parameter D_RIGHT= 2'd0;
+parameter D_UP   = 2'd1;
+parameter D_LEFT = 2'd2;
+parameter D_DOWN = 2'd3;
+
+parameter BFS_IDLE = 2'd0;
+parameter BFS_PUSH = 2'd1;
+parameter BFS_POP  = 2'd2;
+
+//-------------
+parameter start_point = 8'd16;
+parameter end_point   = 8'd208;
+
+
+reg [MAP_SIZE-1 : 0] map;
+reg [1:0] Pre_Dir[16 : 208];
+
+reg visited[16:208];
+reg func_mode;
+reg [2:0] c_state,n_state;
+reg [7:0] c_node , n_node;
+reg [1:0] n_node_pre_direction;
+reg [7:0] c_node_out ;
+
+// -----------  Queue or Stack -------------
+wire [7:0] q_data_out;
+reg push1_pop0, en;
+reg my_rst_n;
+//wire empty,full;
+// intger
+integer map_index;
+integer index;
+
+wire no_neighbor;
+
+// ----------------  INPUT MAZE -------------------
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for(map_index = 0 ; map_index < MAP_SIZE ; map_index = map_index +1)begin
+            map[map_index] <= 1'b0;
+        end
+    end
+    else if(in_valid)begin
+        map[MAP_SIZE-1] <= maze;
+        for(map_index = 1 ; map_index < MAP_SIZE ; map_index = map_index +1)begin
+            map[map_index-1] <= map[map_index];
+        end
+    end
+    else begin
+        for(map_index = 0 ; map_index < MAP_SIZE ; map_index = map_index +1)begin
+            map[map_index] <= map[map_index] ;
+        end
+    end
+end
+    
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        func_mode<= 1'b0;
+    end
+    else if(n_state == S_INPUT && c_state == S_IDLE)begin
+        func_mode <= mode;
+    end
+    else if(n_state == S_IDLE)begin
+        func_mode <= 1'b0;
+    end
+    else begin
+        func_mode <= func_mode;
+    end
+end
+
+
+reg [1:0] c_BFS_state, n_BFS_state;
+
+always@(*)begin
+    if(c_state == S_OUTPUT)
+        n_BFS_state = BFS_IDLE;
+    else begin
+        case(c_BFS_state)
+            BFS_IDLE: n_BFS_state = (n_state == S_MAZE_RUNNING)? BFS_PUSH : c_BFS_state;
+            BFS_PUSH: n_BFS_state = (no_neighbor) ? BFS_POP : c_BFS_state;
+            BFS_POP : n_BFS_state = BFS_PUSH ;//VEGA UNDONE
+            default:
+                n_BFS_state = c_BFS_state;
+        endcase
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(! rst_n)begin
+        c_BFS_state <= BFS_IDLE;
+    end
+    else begin
+        c_BFS_state <= n_BFS_state;
+    end
+end
+
+always@(*)begin
+    if(n_state == S_MAZE_RUNNING && n_BFS_state == BFS_PUSH)begin
+        push1_pop0 = 1'b1;
+    end
+    else if(n_state == S_MAZE_RUNNING && n_BFS_state == BFS_POP)begin
+        push1_pop0 = 1'b0;
+    end
+    else begin
+        push1_pop0 = 1'b0;
+    end
+end
+
+always@(*)begin// could be more simplified
+    if(n_state == S_MAZE_RUNNING && func_mode == BFS)begin
+        if(c_BFS_state == BFS_POP && no_neighbor)
+            en = 1'b0;
+        else
+            en = 1'b1;
+    end
+    else begin
+        en = 1'b0;
+    end
+end
+
+always@(*)begin
+    if(n_state == S_IDLE)
+        my_rst_n = 1'b0;
+    else 
+        my_rst_n = 1'b1;
+end
+
+
+FIFO fifo_u(clk,my_rst_n,func_mode,n_node,q_data_out,push1_pop0,en);// empty, full);
+
+// --------------   SUB FSM ----------
+wire[7:0] c_node_left; 
+wire[7:0] c_node_right; 
+wire[7:0] c_node_up; 
+wire[7:0] c_node_down; 
+reg [7:0] tmp;
+
+always@(*)begin
+    tmp = (n_state == S_MAZE_RUNNING) ? c_node : c_node_out;
+end
+assign c_node_left  = tmp  - 8'd1; //c_node - 8'd1; 
+assign c_node_right = tmp  + 8'd1; //c_node + 8'd1; 
+assign c_node_up    = tmp  - 8'd15;//c_node - 8'd15; 
+assign c_node_down  = tmp  + 8'd15;//c_node + 8'd15; 
+
+
+reg [3:0] c_right_down_left_up;
+
+always@(*)begin
+    c_right_down_left_up = {map[c_node_right] | visited[c_node_right],
+                            map[c_node_down]  | visited[c_node_down],
+                            map[c_node_left]  | visited[c_node_left],
+                            map[c_node_up]    | visited[c_node_up]   };
+end
+parameter dead_end = 8'b1111_1111;
+
+always@(*)begin
+// --------------- FOR DFS & BFS-------------------
+    if(func_mode == DFS)begin
+        case(c_right_down_left_up)
+        4'b0xxx: n_node = c_node_right;
+        4'bx0xx: n_node = c_node_down;
+        4'bxx0x: n_node = c_node_left;
+        4'bxxx0: n_node = c_node_up;
+        default: n_node = dead_end;
+        endcase
+        /*
+        if(! c_right_down_left_up[3])begin
+            n_node = c_node_right;
+        end
+        else if(!c_right_down_left_up[2])begin
+            n_node = c_node_down;
+        end
+        else if(!c_right_down_left_up[1])begin
+            n_node = c_node_left;
+        end
+        else if(!c_right_down_left_up[0])begin
+            n_node = c_node_up;
+        end
+        else begin// No Way to Go
+            n_node = dead_end;
+        end
+        */
+    end
+    else begin
+        case(c_right_down_left_up)
+        4'bxxx0: n_node = c_node_up;
+        4'bxx0x: n_node = c_node_left;
+        4'bx0xx: n_node = c_node_down;
+        4'b0xxx: n_node = c_node_right;
+        default: n_node = dead_end;
+        endcase
+        /*
+        if(!c_right_down_left_up[0])begin
+            n_node = c_node_up;
+        end
+        else if(!c_right_down_left_up[1])begin
+            n_node = c_node_left;
+        end
+        else if(!c_right_down_left_up[2])begin
+            n_node = c_node_down;
+        end
+        else if(! c_right_down_left_up[3])begin
+            n_node = c_node_right;
+        end
+        else begin// No Way to Go
+            n_node = dead_end;
+        end
+        */
+    end
+end
+
+
+always@(*)begin
+    if(func_mode == DFS)begin
+        case(c_right_down_left_up)
+        4'b0xxx: n_node_pre_direction = D_LEFT;
+        4'bx0xx: n_node_pre_direction = D_UP;
+        4'bxx0x: n_node_pre_direction = D_RIGHT;
+        4'bxxx0: n_node_pre_direction = D_DOWN;
+        default: n_node_pre_direction = 2'bxx;// VEGA
+        endcase
+        /*
+        if(! c_right_down_left_up[3])begin
+            n_node_pre_direction = D_LEFT;
+        end
+        else if(!c_right_down_left_up[2])begin
+            n_node_pre_direction = D_UP;
+        end
+        else if(!c_right_down_left_up[1])begin
+            n_node_pre_direction = D_RIGHT;
+        end
+        else if(!c_right_down_left_up[0])begin
+            n_node_pre_direction = D_DOWN;
+        end
+        else begin// No Way to Go
+            n_node_pre_direction = 2'bxx;// VEGA
+        end
+        */
+    end
+    else begin
+        case(c_right_down_left_up)
+        4'bxxx0: n_node_pre_direction = D_DOWN;
+        4'bxx0x: n_node_pre_direction = D_RIGHT;
+        4'bx0xx: n_node_pre_direction = D_UP;
+        4'b0xxx: n_node_pre_direction = D_LEFT;
+        default: n_node_pre_direction = 2'bxx;//VEGA
+        endcase
+        /*
+        if(!c_right_down_left_up[0])begin
+            n_node_pre_direction = D_DOWN;
+        end
+        else if(!c_right_down_left_up[1])begin
+            n_node_pre_direction = D_RIGHT;
+        end
+        else if(!c_right_down_left_up[2])begin
+            n_node_pre_direction = D_UP;
+        end
+        else if(! c_right_down_left_up[3])begin
+            n_node_pre_direction = D_LEFT;
+        end
+        else begin// No Way to Go
+            n_node_pre_direction = 2'bxx;//VEGA
+        end
+        */
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        c_node <= 'b0;
+    end
+    else begin
+        case(n_state)
+            S_INPUT: c_node <= (func_mode==DFS)? start_point: end_point;
+            S_MAZE_RUNNING:begin
+                if(func_mode == DFS)begin// DFS mode
+                    if(c_node == end_point)begin
+                        c_node <= c_node;// get to the exit
+                    end
+                    else if(no_neighbor)begin
+                        case(Pre_Dir[c_node])
+                            D_UP:   c_node<= c_node_up;
+                            D_DOWN: c_node<= c_node_down;
+                            D_LEFT: c_node<= c_node_left;
+                            D_RIGHT:c_node<= c_node_right;
+                            default:
+                                c_node <= c_node;
+                        endcase
+                    end
+                    else begin
+                        c_node <= n_node;
+                    end
+                end
+                else begin// BFS mode c_node
+                    if(n_BFS_state == BFS_POP)
+                        c_node <= q_data_out;
+                    else 
+                        c_node <= c_node;
+                end
+            end
+            default:
+                c_node <=  c_node;
+        endcase
+    end
+end
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for(index = 0 ; index < MAP_SIZE; index = index + 1)begin
+            visited[index] <= 'b0;
+        end
+        for(index = 0 ; index < 225 ; index = index +1 )begin
+            Pre_Dir[index] <= 'b0; 
+        end
+    end
+    else begin
+    case(n_state)
+        S_IDLE:begin
+            for(index = 0 ; index < MAP_SIZE; index = index + 1)begin
+                visited[index] <= 'b0;
+            end
+            for(index = 0 ; index < 225 ; index = index +1 )begin
+                Pre_Dir[index] <= 'b0;
+            end
+        end
+        S_INPUT:begin
+            for(index = 0 ; index < 225 ; index = index +1 )begin
+                Pre_Dir[index] <= Pre_Dir[index];
+            end
+
+            if(func_mode == DFS)
+                visited[start_point] <= 1'b1;
+            else
+                visited[end_point]   <= 1'b1;
+        end
+        S_MAZE_RUNNING:begin
+            Pre_Dir[n_node] <=  n_node_pre_direction;
+            if(func_mode==DFS)begin
+                if(c_node == end_point)begin
+                    visited[c_node] <= visited[c_node];
+                end
+                else begin
+                    visited[n_node] <= 1'b1;
+                end
+            end
+            else begin
+                if(c_node == start_point)begin
+                    visited[c_node] <= visited[c_node];
+                end
+                else begin
+                    visited[n_node] <= 1'b1;
+                end
+            end
+        end
+        default: begin
+            for(index = 0 ; index < MAP_SIZE; index = index + 1)begin
+                visited[index] <= visited[index];
+            end
+            for(index = 0 ; index < 225 ; index = index +1 )begin
+                Pre_Dir[index] <= Pre_Dir[index];
+            end
+        end
+    endcase
+end
+//  Pre_Dir
+/*
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        for(index = 0 ; index < 225 ; index = index +1 )begin
+            Pre_Dir[index] <= 'b0; 
+        end
+    end
+    else if(n_state == S_IDLE)begin
+        for(index = 0 ; index < 225 ; index = index +1 )begin
+            Pre_Dir[index] <= 'b0;
+        end
+    end
+    else if(n_state == S_MAZE_RUNNING)begin
+        if(func_mode == DFS)begin
+            Pre_Dir[n_node] <=  n_node_pre_direction;
+        end
+        else begin
+            Pre_Dir[n_node] <=  n_node_pre_direction;
+        end
+    end
+    else begin
+        for(index = 0 ; index < 225 ; index = index +1 )begin
+            Pre_Dir[index] <= Pre_Dir[index];
+        end
+    end
+end
+*/
+// --------------- flag -----------------
+assign  no_neighbor =  (n_node == dead_end) ? 1'b1 : 1'b0;
+
+reg reach_exit;
+always@(*)begin
+    if(c_node == end_point)begin
+        reach_exit = 'b1;
+    end
+    else begin
+        reach_exit = 'b0;
+    end
+end
+reg reach_start;
+always@(*)begin
+    if(c_state == S_MAZE_RUNNING)
+        reach_start = (c_node == start_point) ? 1'b1: 1'b0;
+    else if(c_state == S_OUTPUT) begin
+        reach_start = (c_node_out == start_point) ? 1'b1 :  1'b0;
+    end
+    else begin
+        reach_start = 'b0;
+    end
+end
+wire special_case;
+assign special_case = map[start_point];
+
+reg no_solution;
+always@(*)begin
+    if(c_node == start_point && n_node == dead_end && c_node == S_MAZE_RUNNING)
+        no_solution = 1'b1;
+    else 
+        no_solution = 1'b0;
+end
+// -------------- output -------------------------
+wire [3:0] out_y_U = out_y - 'd1;
+wire [3:0] out_y_D = out_y + 'd1;
+
+wire [3:0] out_x_L =  out_x - 'd1;
+wire [3:0] out_x_R =  out_x + 'd1;
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        out_x <= 'b0;
+        out_y <= 'b0;
+        c_node_out <= 'b0;
+    end
+    else if (c_state == S_OUTPUT)begin
+        if(func_mode == DFS)begin
+            case(Pre_Dir[c_node_out])
+                D_DOWN:begin
+                    out_x <= out_x;
+                    out_y <= out_y_D;
+                    c_node_out <= c_node_out + 8'd15;
+                end
+                D_UP:begin
+                    out_x <= out_x;
+                    out_y <= out_y_U;
+                    c_node_out <= c_node_out - 8'd15;
+                end
+                D_LEFT:begin
+                    out_x <= out_x_L;
+                    out_y <= out_y ;
+                    c_node_out <= c_node_out - 8'd1;
+                end
+                D_RIGHT:begin
+                    out_x <= out_x_R;
+                    out_y <= out_y ;
+                    c_node_out <= c_node_out + 8'd1;
+                end
+            endcase
+        end
+        else begin// remain_right_down_left_up
+            if(Pre_Dir[c_node_up] == D_DOWN)begin
+                    out_x <= out_x;
+                    out_y <= out_y_U;
+                    c_node_out <= c_node_up;
+            end
+            else if(Pre_Dir[c_node_left]== D_RIGHT)begin
+                    out_x <= out_x_L;
+                    out_y <= out_y ;
+                    c_node_out <= c_node_left;
+            end
+            else if(Pre_Dir[c_node_down]== D_UP)begin
+                    out_x <= out_x;
+                    out_y <= out_y_D;
+                    c_node_out <= c_node_down;
+            end
+            else begin
+                    out_x <= out_x_R;
+                    out_y <= out_y ;
+                    c_node_out <= c_node_right;
+            end
+        end
+    end
+    else if (n_state == S_OUTPUT)begin
+        out_x <= 4'd13;
+        out_y <= 4'd13;
+        c_node_out <= end_point;
+    end
+    else begin
+        out_x <= 'b0;
+        out_y <= 'b0;
+        c_node_out <= 'b0;
+    end
+end
+
+
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        out_valid <= 'b0;
+    end
+    else begin
+        out_valid <= (n_state == S_OUTPUT) ? 1'b1 : 1'b0;
+    end
+end
+
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)
+        maze_not_valid <= 'b0;
+    else if(n_state == S_OUTPUT && (special_case | no_solution))
+        maze_not_valid <= 1'b1;
+    else
+        maze_not_valid <= 1'b0;
+end
+// ------------------   FSM of System ---------------------------
+always@(posedge clk or negedge rst_n)begin
+    if(!rst_n)begin
+        c_state <= S_IDLE;
+    end
+    else begin
+        c_state <= n_state;
+    end
+end
+
+always@(*)begin
+    case(c_state)
+        S_IDLE:
+            n_state =(in_valid)? S_INPUT : c_state;
+        S_INPUT:
+            n_state =(in_valid)? c_state : S_MAZE_RUNNING;
+        S_MAZE_RUNNING:begin
+            if(func_mode == DFS)begin
+                n_state =(reach_exit | special_case | no_solution)? S_OUTPUT : c_state;
+            end
+            else begin
+                n_state =(reach_start| special_case | no_solution)? S_OUTPUT : c_state;
+            end
+        end
+        S_OUTPUT:
+            n_state =(special_case | reach_start | no_solution)? S_IDLE   :c_state;
+        default:
+            n_state = c_state;
+    endcase
+end
+
+endmodule 
+
+// Note: This could be make into both FIFO and FILO
+// Note: Q1S0
+module FIFO(clk,rst_n,Q1S0,data_in,data_out,push1_pop0,en);// empty, full);
+    parameter width = 8;
+    parameter depth = 32;
+    input Q1S0;
+    input clk,rst_n,push1_pop0,en;
+    input  [width-1 : 0] data_in;
+    output reg [width-1 : 0] data_out;
+//    output reg empty,full;
+
+    reg [width-1 : 0] queue [0:depth-1];
+    integer que_index;
+
+    reg [4:0] read_ptr;
+    reg [4:0] write_ptr;
+
+    wire [4:0] next_write_ptr = write_ptr + 5'd1;
+
+    always@(posedge clk or negedge rst_n)begin
+        if(!rst_n)begin
+            read_ptr <= 'b0;
+            write_ptr <= 'b0;
+        end 
+        else if(en)begin
+            if(Q1S0)begin// queue
+                read_ptr <= (push1_pop0)? read_ptr        : read_ptr+ 'd1;
+                write_ptr<= (push1_pop0)? next_write_ptr  : write_ptr;
+            end
+            else begin//stack
+                read_ptr <= (push1_pop0)? write_ptr    :read_ptr - 'd1;
+                write_ptr<= (push1_pop0)? next_write_ptr :read_ptr      ;
+            end
+        end
+        else begin
+            read_ptr <= read_ptr;
+            write_ptr <= write_ptr;
+        end
+    end
+
+    always@(posedge clk or negedge rst_n)begin
+        if(!rst_n)begin
+            for(que_index = 0 ; que_index < depth ; que_index = que_index + 1)begin
+                queue[que_index] <= 'b0;
+            end
+        end
+        else begin
+                queue[write_ptr] <=(en & push1_pop0) // & (!full) ) ? data_in :queue[write_ptr] ;
+                                                     ? data_in :queue[write_ptr] ;
+        end
+    end
+
+    always@(*)begin
+            data_out = (en & (!push1_pop0))// & (!empty) ) ? queue[read_ptr] : 'b0;
+                                          ? queue[read_ptr] : 'b0;
+    end
+/*
+    always@(*)begin
+        if(Q1S0)begin 
+            empty = (read_ptr == write_ptr) ? 'b1 : 'b0;
+        end
+        else begin
+            empty = (write_ptr == 'd0) ? 1'b1 : 1'b0;
+        end
+    end
+*/
+/*
+    always@(*)begin
+        if(Q1S0)begin
+            full = ((next_write_ptr) == read_ptr ) ? 'b1 : 'b0;
+        end
+        else begin
+            full = (read_ptr == 5'd31 ) ? 1'b1 : 1'b0;
+        end
+    end
+*/
+
+endmodule
